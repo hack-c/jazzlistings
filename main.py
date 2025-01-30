@@ -127,7 +127,6 @@ def store_concert_data(session, concert_data_list, venue_info):
                 datetime_list.append(datetime.strptime(f"{date_str} {t}", "%Y-%m-%d %H:%M"))
             except ValueError as ve:
                 print(f"Invalid date/time format for concert on {date_str} at {t}: {ve}")
-                # Skip just this particular time, but continue processing others
                 continue
 
         # Safely retrieve remaining fields
@@ -149,33 +148,42 @@ def store_concert_data(session, concert_data_list, venue_info):
             venue = session.query(Venue).filter_by(name=venue_name).first()
             if not venue:
                 venue = Venue(
-                    name=venue_name, address=address, website_url=venue_info['url']
+                    name=venue_name,
+                    address=address,
+                    website_url=venue_info['url']
                 )
                 session.add(venue)
                 session.commit()
 
-            # Check if the concert already exists based on the venue and times array
+            # Instead of filtering by `Concert.times == datetime_list`:
+            # Just check whether there's already a Concert for this venue.
             existing_concert = (
                 session.query(Concert)
                 .filter_by(venue_id=venue.id)
-                .filter(Concert.times == datetime_list)
                 .first()
             )
-            if existing_concert:
-                # Update existing concert if necessary
-                if artist not in existing_concert.artists:
-                    existing_concert.artists.append(artist)
-                    session.commit()
+
+            if existing_concert and artist in existing_concert.artists:
+                # Already have a concert for this venue & artist, so skip or update.
+                # If you do want to add new times to that existing concert:
+                #    for dt in datetime_list:
+                #        existing_concert.times.append(ConcertTime(time=dt, concert=existing_concert))
+                #    session.commit()
+                pass
             else:
                 # Create new concert
                 concert = Concert(
                     venue=venue,
-                    times=datetime_list,
                     ticket_link=ticket_link,
                     price_range=price_range,
                     special_notes=special_notes,
                 )
                 concert.artists.append(artist)
+
+                # Create child ConcertTime rows
+                for dt in datetime_list:
+                    concert.times.append(ConcertTime(time=dt, concert=concert))
+
                 session.add(concert)
                 session.commit()
 
