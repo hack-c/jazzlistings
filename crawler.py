@@ -24,7 +24,7 @@ class Crawler:
         """
         try:
             # Scrape the website and return the markdown content
-            scrape_result = self.app.crawl_url(
+            scrape_result = self.app.scrape_url(
                 url, params={'formats': ['markdown']})
             sleep(6)
             if 'markdown' in scrape_result:
