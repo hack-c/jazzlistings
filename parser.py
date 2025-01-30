@@ -52,7 +52,7 @@ def parse_markdown(markdown_content):
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=1500,
+            max_tokens=8000,
             temperature=0.2,
         )
 
