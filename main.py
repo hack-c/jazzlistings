@@ -4,6 +4,10 @@ from database import Session, init_db
 from models import Artist, Venue, Concert, ConcertTime
 from datetime import datetime
 
+from flask import Flask
+app = Flask(__name__)
+
+from collections import defaultdict
 
 def main():
     """
@@ -197,7 +201,62 @@ def store_concert_data(session, concert_data_list, venue_info):
             print(f"Error storing concert data: {e}")
             continue
 
+@app.route("/")
+def index():
+    # Open a DB session
+    session = Session()
 
+    # Build nested dict: { "YYYY-MM-DD": { "VenueName": [(time, [Artist, Artist, ...]), ...] } }
+    data = defaultdict(lambda: defaultdict(list))
+
+    # Pull all concerts ordered by their time
+    concerts = session.query(Concert).join(ConcertTime).order_by(ConcertTime.time).all()
+
+    for c in concerts:
+        for ct in c.times:
+            date_str = ct.time.strftime("%Y-%m-%d")
+            data[date_str][c.venue.name].append((ct.time, c.artists))
+
+    session.close()
+
+    # Construct a very simple HTML page with black background, white text
+    page = """
+    <html>
+      <head>
+        <style>
+          body {
+            background-color: black;
+            color: white;
+            font-family: sans-serif;
+          }
+          h1, h2, h3, p {
+            margin: 8px 0;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>Concert Listings</h1>
+    """
+
+    # Sort by date, then by venue, then by time
+    for date_str in sorted(data.keys()):
+        page += f"<h2>{date_str}</h2>"
+        for venue_name in sorted(data[date_str].keys()):
+            page += f"<h3>{venue_name}</h3>"
+            # Sort entries by the actual datetime, then display
+            for (t, artists) in sorted(data[date_str][venue_name], key=lambda x: x[0]):
+                t_str = t.strftime("%I:%M %p")
+                artist_names = ", ".join(artist.name for artist in artists)
+                page += f"<p>{t_str} - {artist_names}</p>"
+
+    page += "</body></html>"
+    return page
 
 if __name__ == '__main__':
-    main()
+    import sys
+    if "server" in sys.argv:
+        # Run the Flask dev server
+        app.run(debug=True)
+    else:
+        # Default to running the crawler logic
+        main()
