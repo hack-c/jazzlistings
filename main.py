@@ -123,7 +123,8 @@ def store_concert_data(session, concert_data_list, venue_info):
         datetime_list = []
         for t in times_list:
             try:
-                datetime_list.append(datetime.strptime(f"{date_str} {t}", "%Y-%m-%d %H:%M"))
+                # Note the '%I:%M %p' portion for 12-hour clock + AM/PM
+                datetime_list.append(datetime.strptime(f"{date_str} {t}", "%Y-%m-%d %I:%M %p"))
             except ValueError as ve:
                 print(f"Invalid date/time format for concert on {date_str} at {t}: {ve}")
                 continue
