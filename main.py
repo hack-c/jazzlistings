@@ -100,6 +100,7 @@ def store_concert_data(session, concert_data_list, venue_info):
         concert_data_list (list): List of concert data dictionaries.
         venue_info (dict): Venue information containing name and URL.
     """
+    venue_name = venue_info['name']
     for concert_data in concert_data_list:
         # Safely retrieve and strip artist/date fields if they exist
         artist_name = (concert_data.get('artist') or '').strip()
