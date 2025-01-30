@@ -1,7 +1,7 @@
 from crawler import Crawler
 from parser import parse_markdown
 from database import Session, init_db
-from models import Artist, Venue, Concert
+from models import Artist, Venue, Concert, ConcertTime
 from datetime import datetime
 
 
@@ -122,12 +122,18 @@ def store_concert_data(session, concert_data_list, venue_info):
         from datetime import datetime
         datetime_list = []
         for t in times_list:
-            try:
-                # Note the '%I:%M %p' portion for 12-hour clock + AM/PM
-                datetime_list.append(datetime.strptime(f"{date_str} {t}", "%Y-%m-%d %I:%M %p"))
-            except ValueError as ve:
-                print(f"Invalid date/time format for concert on {date_str} at {t}: {ve}")
+            parsed_dt = None
+            for fmt in ["%Y-%m-%d %I:%M %p", "%Y-%m-%d %H:%M"]:
+                try:
+                    parsed_dt = datetime.strptime(f"{date_str} {t}", fmt)
+                    break
+                except ValueError:
+                    continue
+            if parsed_dt is None:
+                print(f"Invalid date/time format for concert on {date_str} at {t}. Skipping.")
                 continue
+
+    datetime_list.append(parsed_dt)
 
         # Safely retrieve remaining fields
         venue_name = (concert_data.get('venue') or venue_info['name']).strip()
