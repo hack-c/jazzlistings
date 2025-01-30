@@ -30,7 +30,7 @@ def parse_markdown(markdown_content):
         {{
             "artist": "Artist Name",
             "date": "YYYY-MM-DD",
-            "time": "HH:MM",
+            "times": ["HH:MM", "HH:MM"],
             "venue": "Venue Name",
             "address": "Venue Address",
             "ticket_link": "URL",
@@ -40,9 +40,9 @@ def parse_markdown(markdown_content):
         ...
     ]
 
-    Ensure that each concert entry includes both "date" and "time". If the time is not specified, set it to "20:00".
+    Ensure that each concert entry includes both "date" and "time". If the time is not specified, set it to null. Assume all times given are Eastern Time. 
 
-    If any other field is missing, use an empty string.
+    If any other field is missing, use null.
 
     Provide only the JSON array as the output.
     """
