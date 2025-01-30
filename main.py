@@ -133,7 +133,7 @@ def store_concert_data(session, concert_data_list, venue_info):
                 print(f"Invalid date/time format for concert on {date_str} at {t}. Skipping.")
                 continue
 
-    datetime_list.append(parsed_dt)
+        datetime_list.append(parsed_dt)
 
         # Safely retrieve remaining fields
         venue_name = (concert_data.get('venue') or venue_info['name']).strip()
