@@ -103,23 +103,25 @@ def store_concert_data(session, concert_data_list, venue_info):
         try:
             artist_name = concert_data.get('artist', '').strip()
             date = concert_data.get('date', '').strip()
-            time = concert_data.get('time', '').strip()
+            times_list = concert_data.get('times', [])
 
             if not artist_name or not date:
                 print("Incomplete concert data (missing artist or date), skipping entry.")
                 continue
 
             # If time is missing, assign a default time
-            if not time:
-                print(f"Time missing for concert on {date}. Assigning default time '20:00'.")
-                time = "20:00"
+            if not times_list:
+                print(f"Time missing for concert on {date}. Assigning default time ['20:00'].")
+                times_list = ["20:00"]
 
-            date_time_str = f"{date} {time}"
-            try:
-                date_time = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M")
-            except ValueError as ve:
-                print(f"Invalid date/time format for concert on {date} at {time}: {ve}")
-                continue
+            # Convert each time string to a datetime object
+            datetime_list = []
+            for t in times_list:
+                try:
+                    datetime_list.append(datetime.strptime(f"{date} {t}", "%Y-%m-%d %H:%M"))
+                except ValueError as ve:
+                    print(f"Invalid date/time format for concert on {date} at {t}: {ve}")
+                    continue
 
             venue_name = concert_data.get('venue', venue_info['name']).strip()
             address = concert_data.get('address', '').strip()
@@ -146,19 +148,18 @@ def store_concert_data(session, concert_data_list, venue_info):
             # Check if the concert already exists
             existing_concert = (
                 session.query(Concert)
-                .filter_by(venue_id=venue.id, date_time=date_time)
+                .filter_by(venue_id=venue.id)
+                .filter(Concert.times == datetime_list)
                 .first()
             )
             if existing_concert:
-                # Update existing concert if necessary
                 if artist not in existing_concert.artists:
                     existing_concert.artists.append(artist)
                     session.commit()
             else:
-                # Create new concert
                 concert = Concert(
                     venue=venue,
-                    date_time=date_time,
+                    times=datetime_list,  # <--- store the list of datetimes in our new ARRAY column
                     ticket_link=ticket_link,
                     price_range=price_range,
                     special_notes=special_notes,

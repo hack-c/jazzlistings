@@ -8,6 +8,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
@@ -56,7 +57,7 @@ class Concert(Base):
     __tablename__ = 'concerts'
     id = Column(Integer, primary_key=True)
     venue_id = Column(Integer, ForeignKey('venues.id'), nullable=False)
-    date_time = Column(DateTime, nullable=False)
+    times = Column(ARRAY(DateTime), nullable=False)
     ticket_link = Column(String)
     price_range = Column(String)
     special_notes = Column(Text)
