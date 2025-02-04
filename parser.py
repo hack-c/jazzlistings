@@ -2,27 +2,49 @@ import openai
 from config import OPENAI_API_KEY
 import json
 from openai import OpenAI
+from bs4 import BeautifulSoup
 
 openai.api_key = OPENAI_API_KEY
 client = OpenAI()
 
 
-def parse_markdown(markdown_content):
+def parse_html(html_content):
     """
-    Parse the markdown content to extract concert information using OpenAI GPT-3.5 Turbo.
+    Parse the HTML content to extract concert information using OpenAI GPT-4o.
 
     Parameters:
-        markdown_content (str): The markdown content to parse.
+        html_content (str): The HTML content to parse.
 
     Returns:
         list: A list of dictionaries containing concert information, or None if parsing fails.
     """
-    # Prepare the enhanced prompt for OpenAI
-    prompt = f"""
-    You are an assistant that extracts concert information from the following markdown content and provides it in JSON format.
+    try:
+        # Parse HTML with BeautifulSoup
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Remove script and style elements
+        for script in soup(["script", "style"]):
+            script.decompose()
+            
+        # Get text content
+        text = soup.get_text(separator='\n', strip=True)
+        
+        # Clean up excessive whitespace
+        lines = (line.strip() for line in text.splitlines())
+        text = '\n'.join(line for line in lines if line)
 
-    Markdown Content:
-    {markdown_content}
+    except Exception as e:
+        print(f"Error preprocessing HTML: {e}")
+        return None
+
+    # Prepare the prompt for OpenAI
+    prompt = f"""
+    You are an assistant that extracts concert information from the following website content and provides it in JSON format.
+    The content has been extracted from HTML and may contain various formatting artifacts.
+    Focus on finding concert details like dates, times, artists, and venue information.
+
+    Website Content:
+    {text[:8000]}  # Limit content length to avoid token limits
 
     Extract the concert information and output it in the following JSON format:
 
@@ -40,17 +62,16 @@ def parse_markdown(markdown_content):
         ...
     ]
 
-    Ensure that each concert entry includes both "date" and "time". If the time is not specified, set it to null. Assume all times given are Eastern Time. 
-
-    If any other field is missing, use null.
-
+    Ensure that each concert entry includes both "date" and "times". If the time is not specified, set it to null.
+    Assume all times given are Eastern Time. If any other field is missing, use null.
+    
     Provide only the JSON array as the output.
     """
 
     try:
         # Call the OpenAI API
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o",  # Fixed typo in model name
             messages=[{"role": "user", "content": prompt}],
             max_tokens=8000,
             temperature=0.2,
