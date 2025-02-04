@@ -76,8 +76,8 @@ def main():
         # Scrape the venue website
         html_content = crawler.scrape_venue(venue_url)
         if html_content:
-            print("Parsing markdown content")
-            # Parse the markdown content to extract concert data
+            print("Parsing html content")
+            # Parse the html content to extract concert data
             concert_data_list = parse_html(html_content)
             if concert_data_list:
                 print("Storing concert data")
