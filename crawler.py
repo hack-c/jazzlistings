@@ -1,36 +1,38 @@
-from firecrawl import FirecrawlApp
-from config import FIRECRAWL_API_KEY
+import requests
 from time import sleep
 
 
 class Crawler:
     """
-    Crawler class uses Firecrawl SDK to scrape websites and return markdown content.
+    Crawler class to fetch website HTML content.
     """
 
     def __init__(self):
-        # Initialize the Firecrawl application with the API key
-        self.app = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
+        # Set up a session with common headers
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        })
 
     def scrape_venue(self, url):
         """
-        Scrape the given URL and return the markdown content.
+        Fetch the given URL and return the HTML content.
 
         Parameters:
             url (str): The URL of the website to scrape.
 
         Returns:
-            str: Markdown content of the website, or None if scraping fails.
+            str: HTML content of the website, or None if fetching fails.
         """
         try:
-            # Scrape the website and return the markdown content
-            scrape_result = self.app.scrape_url(
-                url, params={'formats': ['markdown']})
-            sleep(6)
-            if 'markdown' in scrape_result:
-                return scrape_result['markdown']
-            else:
-                return None
+            # Add a small delay to be respectful to servers
+            sleep(0.5)            
+            # Fetch the website content
+            response = self.session.get(url, timeout=30)
+            response.raise_for_status()
+            
+            return response.text
+            
         except Exception as e:
             print(f"Error scraping {url}: {e}")
             return None
