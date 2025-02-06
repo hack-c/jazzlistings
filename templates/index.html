@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC Jazz Listings</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fafafa;
+            color: #333;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 0.5em;
+            color: #1a1a1a;
+            border-bottom: 2px solid #1a1a1a;
+            padding-bottom: 0.2em;
+        }
+        
+        .date-header {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin: 2em 0 1em;
+            color: #2c5282;
+        }
+        
+        .concert-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .artist {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 0.5em;
+        }
+        
+        .venue {
+            color: #4a5568;
+            margin-bottom: 0.5em;
+        }
+        
+        .times {
+            color: #2d3748;
+            margin-bottom: 0.5em;
+        }
+        
+        .price {
+            color: #718096;
+        }
+        
+        .ticket-link {
+            display: inline-block;
+            margin-top: 0.8em;
+            padding: 6px 12px;
+            background: #2c5282;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .ticket-link:hover {
+            background: #2a4365;
+        }
+        
+        .special-notes {
+            margin-top: 0.8em;
+            font-style: italic;
+            color: #718096;
+        }
+        
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            
+            .concert-card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>NYC Jazz Listings</h1>
+    
+    {% set current_date = None %}
+    {% for concert in concerts %}
+        {% if concert.date != current_date %}
+            {% set current_date = concert.date %}
+            <h2 class="date-header">{{ concert.date.strftime('%A, %B %d, %Y') }}</h2>
+        {% endif %}
+        
+        <div class="concert-card">
+            <div class="artist">{{ concert.artist or 'TBA' }}</div>
+            
+            <div class="venue">
+                {{ concert.venue }}
+                {% if concert.address %}
+                    <br>{{ concert.address }}
+                {% endif %}
+            </div>
+            
+            <div class="times">
+                {% if concert.times %}
+                    Times: 
+                    {% for time in concert.times %}
+                        {{ time.time.strftime('%-I:%M %p') }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            {% if concert.price_range %}
+                <div class="price">{{ concert.price_range }}</div>
+            {% endif %}
+            
+            {% if concert.ticket_link %}
+                <a href="{{ concert.ticket_link }}" class="ticket-link" target="_blank">Get Tickets</a>
+            {% endif %}
+            
+            {% if concert.special_notes %}
+                <div class="special-notes">{{ concert.special_notes }}</div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</body>
+</html> 

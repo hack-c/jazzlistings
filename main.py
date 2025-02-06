@@ -2,12 +2,14 @@ from crawler import Crawler
 from parser import parse_html
 from database import Session, init_db
 from models import Artist, Venue, Concert, ConcertTime
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from flask import Flask
+from flask import Flask, render_template
 app = Flask(__name__)
 
 from collections import defaultdict
+from sqlalchemy import select
+from database import SessionLocal
 
 def main():
     """
@@ -123,7 +125,6 @@ def store_concert_data(session, concert_data_list, venue_info):
             times_list = venue_info.get('default_times', ["20:00"])
 
         # Convert times to datetime objects
-        from datetime import datetime
         datetime_list = []
         for t in times_list:
             parsed_dt = None
@@ -201,56 +202,27 @@ def store_concert_data(session, concert_data_list, venue_info):
             print(f"Error storing concert data: {e}")
             continue
 
-@app.route("/")
+@app.route('/')
 def index():
-    # Open a DB session
-    session = Session()
-
-    # Build nested dict: { "YYYY-MM-DD": { "VenueName": [(time, [Artist, Artist, ...]), ...] } }
-    data = defaultdict(lambda: defaultdict(list))
-
-    # Pull all concerts ordered by their time
-    concerts = session.query(Concert).join(ConcertTime).order_by(ConcertTime.time).all()
-
-    for c in concerts:
-        for ct in c.times:
-            date_str = ct.time.strftime("%Y-%m-%d")
-            data[date_str][c.venue.name].append((ct.time, c.artists))
-
-    session.close()
-
-    # Construct a very simple HTML page with black background, white text
-    page = """
-    <html>
-      <head>
-        <style>
-          body {
-            background-color: black;
-            color: white;
-            font-family: sans-serif;
-          }
-          h1, h2, h3, p {
-            margin: 8px 0;
-          }
-        </style>
-      </head>
-      <body>
-        <h1>Concert Listings</h1>
-    """
-
-    # Sort by date, then by venue, then by time
-    for date_str in sorted(data.keys()):
-        page += f"<h2>{date_str}</h2>"
-        for venue_name in sorted(data[date_str].keys()):
-            page += f"<h3>{venue_name}</h3>"
-            # Sort entries by the actual datetime, then display
-            for (t, artists) in sorted(data[date_str][venue_name], key=lambda x: x[0]):
-                t_str = t.strftime("%I:%M %p")
-                artist_names = ", ".join(artist.name for artist in artists)
-                page += f"<p>{t_str} - {artist_names}</p>"
-
-    page += "</body></html>"
-    return page
+    db = SessionLocal()
+    try:
+        # Get concerts for the next 30 days
+        today = datetime.now().date()
+        thirty_days = today + timedelta(days=30)
+        
+        # Query concerts ordered by date and filter for future dates
+        stmt = select(Concert).where(
+            Concert.date >= today,
+            Concert.date <= thirty_days
+        ).order_by(Concert.date)
+        
+        concerts = db.execute(stmt).scalars().all()
+        
+        return render_template('index.html', 
+                             concerts=concerts,
+                             today=today)
+    finally:
+        db.close()
 
 if __name__ == '__main__':
     import sys

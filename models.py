@@ -9,6 +9,8 @@ from sqlalchemy import (
     Table,
     Text,
     create_engine,
+    Date,
+    Time,
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
@@ -42,27 +44,23 @@ class Venue(Base):
 class ConcertTime(Base):
     __tablename__ = 'concert_times'
     id = Column(Integer, primary_key=True)
-    concert_id = Column(Integer, ForeignKey('concerts.id'), nullable=False)
-    time = Column(DateTime, nullable=False)
+    concert_id = Column(Integer, ForeignKey('concerts.id'))
+    time = Column(Time, nullable=True)
 
     concert = relationship('Concert', back_populates='times')
 
 class Concert(Base):
     __tablename__ = 'concerts'
     id = Column(Integer, primary_key=True)
-    venue_id = Column(Integer, ForeignKey('venues.id'), nullable=False)
-    # REMOVE the ARRAY column:
-    # times = Column(ARRAY(DateTime), nullable=False)
-    # REPLACE with a one-to-many relationship to ConcertTime:
-    times = relationship('ConcertTime', back_populates='concert', cascade="all, delete-orphan")
-
+    artist = Column(String)
+    date = Column(Date, nullable=False)
+    venue = Column(String)
+    address = Column(String)
     ticket_link = Column(String)
     price_range = Column(String)
-    special_notes = Column(Text)
-    venue = relationship('Venue', back_populates='concerts')
-    artists = relationship(
-        'Artist', secondary=concert_artists, back_populates='concerts'
-    )
+    special_notes = Column(String)
+
+    times = relationship('ConcertTime', back_populates='concert', cascade="all, delete-orphan")
 
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

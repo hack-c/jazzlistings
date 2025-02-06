@@ -44,7 +44,7 @@ def parse_html(html_content):
     Focus on finding concert details like dates, times, artists, and venue information.
 
     Website Content:
-    {text[:8000]}  # Limit content length to avoid token limits
+    {text[:8000]}
 
     Extract the concert information and output it in the following JSON format:
 
@@ -52,7 +52,7 @@ def parse_html(html_content):
         {{
             "artist": "Artist Name",
             "date": "YYYY-MM-DD",
-            "times": ["HH:MM", "HH:MM"],
+            "times": ["HH:MM"],
             "venue": "Venue Name",
             "address": "Venue Address",
             "ticket_link": "URL",
@@ -62,8 +62,12 @@ def parse_html(html_content):
         ...
     ]
 
-    Ensure that each concert entry includes both "date" and "times". If the time is not specified, set it to null.
-    Assume all times given are Eastern Time. If any other field is missing, use null.
+    Important formatting rules:
+    - For date, use YYYY-MM-DD format
+    - For times, use 24-hour HH:MM format (e.g. "19:30" for 7:30 PM)
+    - If a time is not specified or unclear, provide an empty array for times: []
+    - If any other field is missing or unclear, use null
+    - Assume all times are Eastern Time
     
     Provide only the JSON array as the output.
     """
