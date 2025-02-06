@@ -8,7 +8,7 @@ client = OpenAI()
 
 def parse_markdown(markdown_content):
     """
-    Parse the HTML content to extract concert information using OpenAI GPT-4o.
+    Parse the markdown content to extract concert information using OpenAI GPT-4o.
 
     Parameters:
         markdown_content (str): The markdown content to parse.

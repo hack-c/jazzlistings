@@ -120,21 +120,34 @@ def store_concert_data(session, concert_data_list, venue_info):
             print("Incomplete concert data (missing artist or date), skipping entry.")
             continue
 
-        # Handle date ranges (e.g., "2024-02-18 to 2024-02-23")
+        # Handle date ranges (e.g., "2025-02-18 to 2025-02-23")
         start_date = None
         end_date = None
+        current_year = datetime.now().year  # Get current year
+        
         if ' to ' in date_str:
             try:
                 start_str, end_str = date_str.split(' to ')
                 start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
                 end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
+                
+                # If dates are in the past relative to current year, adjust to current year
+                if start_date.year < current_year:
+                    start_date = start_date.replace(year=current_year)
+                if end_date.year < current_year:
+                    end_date = end_date.replace(year=current_year)
+                    
                 dates = [start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1)]
             except ValueError as e:
                 print(f"Error parsing date range {date_str}: {e}")
                 continue
         else:
             try:
-                dates = [datetime.strptime(date_str, '%Y-%m-%d').date()]
+                concert_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                # If date is in the past relative to current year, adjust to current year
+                if concert_date.year < current_year:
+                    concert_date = concert_date.replace(year=current_year)
+                dates = [concert_date]
             except ValueError as e:
                 print(f"Error parsing date {date_str}: {e}")
                 continue
