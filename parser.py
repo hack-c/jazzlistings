@@ -44,7 +44,7 @@ def parse_html(html_content):
     Focus on finding concert details like dates, times, artists, and venue information.
 
     Website Content:
-    {text[:8000]}
+    {text[:640000]}
 
     Extract the concert information and output it in the following JSON format:
 
@@ -77,7 +77,7 @@ def parse_html(html_content):
         response = client.chat.completions.create(
             model="gpt-4o",  # Fixed typo in model name
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=8000,
+            max_tokens=16000,
             temperature=0.2,
         )
 
