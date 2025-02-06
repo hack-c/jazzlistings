@@ -3,6 +3,9 @@ from parser import parse_markdown
 from database import Session, SessionLocal, init_db
 from models import Artist, Venue, Concert, ConcertTime
 from datetime import datetime, timedelta
+from time import sleep
+import random
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from flask import Flask, render_template
 app = Flask(__name__)
@@ -13,15 +16,18 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import concurrent.futures
 
 def process_venue(venue_info, session):
-    """Process a single venue - this will run in parallel"""
+    """Process a single venue with rate limiting"""
     venue_name = venue_info['name']
     venue_url = venue_info['url']
     print(f"Scraping {venue_name} at {venue_url}")
     
+    # Add random delay between 1-3 seconds before each request
+    sleep(random.uniform(1, 3))
+    
     crawler = Crawler()
     try:
-        # Scrape the venue website
-        markdown_content = crawler.scrape_venue(venue_url)
+        # Scrape the venue website with retries
+        markdown_content = scrape_with_retry(crawler, venue_url, venue_name)
         if not markdown_content:
             print(f"Failed to scrape markdown content for {venue_name}")
             return
@@ -37,6 +43,22 @@ def process_venue(venue_info, session):
             print(f"Failed to parse concert data for {venue_name}")
     except Exception as e:
         print(f"Error processing {venue_name}: {e}")
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=5, min=5, max=60),
+    reraise=True
+)
+def scrape_with_retry(crawler, url, venue_name):
+    """Attempt to scrape with exponential backoff retry"""
+    try:
+        return crawler.scrape_venue(url)
+    except Exception as e:
+        if "429" in str(e):  # Rate limit error
+            print(f"Rate limit hit for {venue_name}, backing off...")
+            # Add extra delay on rate limit
+            sleep(random.uniform(5, 10))
+        raise
 
 def main():
     """
@@ -97,27 +119,36 @@ def main():
         
     ]
 
-    # Number of worker threads - adjust based on your system
-    max_workers = min(32, len(venues))
+    # Reduce number of concurrent workers to help with rate limits
+    max_workers = min(8, len(venues))  # Reduced from 32 to 8
     
     print(f"Starting parallel processing with {max_workers} workers")
     
-    # Use ThreadPoolExecutor for I/O-bound tasks (web scraping)
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all venues for processing
-        future_to_venue = {
-            executor.submit(process_venue, venue, session): venue['name'] 
-            for venue in venues
-        }
+    # Process venues in smaller batches
+    batch_size = 5
+    for i in range(0, len(venues), batch_size):
+        batch = venues[i:i+batch_size]
+        print(f"\nProcessing batch {i//batch_size + 1} of {(len(venues) + batch_size - 1)//batch_size}")
         
-        # Process completed tasks as they finish
-        for future in as_completed(future_to_venue):
-            venue_name = future_to_venue[future]
-            try:
-                future.result()  # This will raise any exceptions that occurred
-                print(f"Completed processing {venue_name}")
-            except Exception as e:
-                print(f"Error processing {venue_name}: {e}")
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_venue = {
+                executor.submit(process_venue, venue, session): venue['name'] 
+                for venue in batch
+            }
+            
+            for future in as_completed(future_to_venue):
+                venue_name = future_to_venue[future]
+                try:
+                    future.result()
+                    print(f"Completed processing {venue_name}")
+                except Exception as e:
+                    print(f"Error processing {venue_name}: {e}")
+        
+        # Add delay between batches
+        if i + batch_size < len(venues):
+            delay = random.uniform(10, 15)
+            print(f"\nWaiting {delay:.1f} seconds before next batch...")
+            sleep(delay)
 
     session.close()
     print("\nAll venues processed")
