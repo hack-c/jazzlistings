@@ -1,5 +1,5 @@
 from crawler import Crawler
-from parser import parse_html
+from parser import parse_markdown
 from database import Session, SessionLocal, init_db
 from models import Artist, Venue, Concert, ConcertTime
 from datetime import datetime, timedelta
@@ -76,19 +76,20 @@ def main():
         venue_url = venue_info['url']
         print(f"Scraping {venue_name} at {venue_url}")
         # Scrape the venue website
-        html_content = crawler.scrape_venue(venue_url)
-        if html_content:
-            print("Parsing html content")
-            # Parse the html content to extract concert data
-            concert_data_list = parse_html(html_content)
-            if concert_data_list:
-                print("Storing concert data")
-                # Store the concert data in the database
-                store_concert_data(session, concert_data_list, venue_info)
-            else:
-                print("Failed to parse concert data")
-        else:
+        markdown_content = crawler.scrape_venue(venue_url)
+        if not markdown_content:
             print("Failed to scrape markdown content")
+            continue
+
+        print("Parsing markdown content")
+        # Parse the markdown content to extract concert data
+        concert_data_list = parse_markdown(markdown_content)
+        if concert_data_list:
+            print("Storing concert data")
+            # Store the concert data in the database
+            store_concert_data(session, concert_data_list, venue_info)
+        else:
+            print("Failed to parse concert data")
 
     session.close()
 

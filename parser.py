@@ -2,52 +2,29 @@ import openai
 from config import OPENAI_API_KEY
 import json
 from openai import OpenAI
-from bs4 import BeautifulSoup
 
 openai.api_key = OPENAI_API_KEY
 client = OpenAI()
 
-
-def parse_html(html_content):
+def parse_markdown(markdown_content):
     """
     Parse the HTML content to extract concert information using OpenAI GPT-4o.
 
     Parameters:
-        html_content (str): The HTML content to parse.
+        markdown_content (str): The markdown content to parse.
 
     Returns:
         list: A list of dictionaries containing concert information, or None if parsing fails.
     """
-    try:
-        # Parse HTML with BeautifulSoup
-        soup = BeautifulSoup(html_content, 'html.parser')
-        
-        # Remove script and style elements
-        for script in soup(["script", "style"]):
-            script.decompose()
-            
-        # Get text content
-        text = soup.get_text(separator='\n', strip=True)
-        
-        # Clean up excessive whitespace
-        lines = (line.strip() for line in text.splitlines())
-        text = '\n'.join(line for line in lines if line)
-
-    except Exception as e:
-        print(f"Error preprocessing HTML: {e}")
-        return None
-
     # Prepare the prompt for OpenAI
     prompt = f"""
-    You are an assistant that extracts concert information from the following website content and provides it in JSON format.
-    The content has been extracted from HTML and may contain various formatting artifacts.
+    You are an assistant that extracts concert information from the following markdown content and provides it in JSON format.
     Focus on finding concert details like dates, times, artists, and venue information.
 
-    Website Content:
-    {text[:640000]}
+    Markdown Content:
+    {markdown_content[:640000]}
 
     Extract the concert information and output it in the following JSON format:
-
     [
         {{
             "artist": "Artist Name",
