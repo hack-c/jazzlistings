@@ -254,7 +254,6 @@ def store_concert_data(session, concert_data_list, venue_info):
 def index():
     db = SessionLocal()
     try:
-        # Get concerts for the next 30 days
         today = datetime.now().date()
         thirty_days = today + timedelta(days=30)
         
@@ -272,17 +271,16 @@ def index():
             .all()
         )
         
-        # Debug print
-        print(f"Found {len(concerts)} concerts")
-        for c in concerts:
-            print(f"Concert on {c.date}: {', '.join(a.name for a in c.artists)} at {c.venue.name}")
+        # Group concerts by date
+        concerts_by_date = {}
+        for concert in concerts:
+            if concert.date not in concerts_by_date:
+                concerts_by_date[concert.date] = []
+            concerts_by_date[concert.date].append(concert)
         
         return render_template('index.html', 
-                             concerts=concerts,
+                             concerts_by_date=concerts_by_date,
                              today=today)
-    except Exception as e:
-        print(f"Error in index route: {e}")
-        return f"Error loading concerts: {str(e)}", 500
     finally:
         db.close()
 
