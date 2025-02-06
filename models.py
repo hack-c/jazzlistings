@@ -11,6 +11,7 @@ from sqlalchemy import (
     create_engine,
     Date,
     Time,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
@@ -62,6 +63,11 @@ class Concert(Base):
     
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Add unique constraint
+    __table_args__ = (
+        UniqueConstraint('venue_id', 'date', name='uix_concert_venue_date'),
+    )
 
 class ConcertTime(Base):
     __tablename__ = 'concert_times'

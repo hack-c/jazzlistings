@@ -9,6 +9,34 @@ app = Flask(__name__)
 
 from collections import defaultdict
 from sqlalchemy import select
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import concurrent.futures
+
+def process_venue(venue_info, session):
+    """Process a single venue - this will run in parallel"""
+    venue_name = venue_info['name']
+    venue_url = venue_info['url']
+    print(f"Scraping {venue_name} at {venue_url}")
+    
+    crawler = Crawler()
+    try:
+        # Scrape the venue website
+        markdown_content = crawler.scrape_venue(venue_url)
+        if not markdown_content:
+            print(f"Failed to scrape markdown content for {venue_name}")
+            return
+        
+        print(f"Parsing markdown content for {venue_name}")
+        # Parse the markdown content to extract concert data
+        concert_data_list = parse_markdown(markdown_content)
+        if concert_data_list:
+            print(f"Storing concert data for {venue_name}")
+            # Store the concert data in the database
+            store_concert_data(session, concert_data_list, venue_info)
+        else:
+            print(f"Failed to parse concert data for {venue_name}")
+    except Exception as e:
+        print(f"Error processing {venue_name}: {e}")
 
 def main():
     """
@@ -69,29 +97,30 @@ def main():
         
     ]
 
-    crawler = Crawler()
-
-    for venue_info in venues:
-        venue_name = venue_info['name']
-        venue_url = venue_info['url']
-        print(f"Scraping {venue_name} at {venue_url}")
-        # Scrape the venue website
-        markdown_content = crawler.scrape_venue(venue_url)
-        if not markdown_content:
-            print("Failed to scrape markdown content")
-            continue
-
-        print("Parsing markdown content")
-        # Parse the markdown content to extract concert data
-        concert_data_list = parse_markdown(markdown_content)
-        if concert_data_list:
-            print("Storing concert data")
-            # Store the concert data in the database
-            store_concert_data(session, concert_data_list, venue_info)
-        else:
-            print("Failed to parse concert data")
+    # Number of worker threads - adjust based on your system
+    max_workers = min(32, len(venues))
+    
+    print(f"Starting parallel processing with {max_workers} workers")
+    
+    # Use ThreadPoolExecutor for I/O-bound tasks (web scraping)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all venues for processing
+        future_to_venue = {
+            executor.submit(process_venue, venue, session): venue['name'] 
+            for venue in venues
+        }
+        
+        # Process completed tasks as they finish
+        for future in as_completed(future_to_venue):
+            venue_name = future_to_venue[future]
+            try:
+                future.result()  # This will raise any exceptions that occurred
+                print(f"Completed processing {venue_name}")
+            except Exception as e:
+                print(f"Error processing {venue_name}: {e}")
 
     session.close()
+    print("\nAll venues processed")
 
 
 # -- In store_concert_data, replace your existing block for extracting artist_name, date, times, etc.
@@ -100,22 +129,29 @@ def main():
 
 def store_concert_data(session, concert_data_list, venue_info):
     """
-    Stores the concert data into the database.
-
-    Parameters:
-        session: Database session.
-        concert_data_list (list): List of concert data dictionaries.
-        venue_info (dict): Venue information containing name and URL.
+    Stores the concert data into the database with deduplication logic.
     """
     venue_name = venue_info['name']
     print(f"\nProcessing {len(concert_data_list)} concerts for {venue_name}")
     
+    # Get or create venue
+    venue = session.query(Venue).filter_by(name=venue_name).first()
+    if not venue:
+        venue = Venue(
+            name=venue_name,
+            address=venue_info.get('address', ''),
+            website_url=venue_info['url']
+        )
+        session.add(venue)
+        session.commit()
+
     for concert_data in concert_data_list:
         print(f"\nProcessing concert:")
         print(f"  Artist: {concert_data.get('artist')}")
         print(f"  Date: {concert_data.get('date')}")
         print(f"  Special Notes: {concert_data.get('special_notes')}")
-        # Safely retrieve and strip artist/date fields if they exist
+        
+        # Safely retrieve and strip fields
         artist_name = (concert_data.get('artist') or '').strip()
         date_str = (concert_data.get('date') or '').strip()
 
@@ -123,71 +159,30 @@ def store_concert_data(session, concert_data_list, venue_info):
             print("Incomplete concert data (missing artist or date), skipping entry.")
             continue
 
-        # Handle date ranges (e.g., "2025-02-18 to 2025-02-23")
-        start_date = None
-        end_date = None
-        current_year = datetime.now().year  # Get current year
-        
-        if ' to ' in date_str:
-            try:
-                start_str, end_str = date_str.split(' to ')
-                start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
-                end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
-                
-                # If dates are in the past relative to current year, adjust to current year
-                if start_date.year < current_year:
-                    start_date = start_date.replace(year=current_year)
-                if end_date.year < current_year:
-                    end_date = end_date.replace(year=current_year)
-                    
-                dates = [start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1)]
-            except ValueError as e:
-                print(f"Error parsing date range {date_str}: {e}")
-                continue
-        else:
-            try:
-                concert_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-                # If date is in the past relative to current year, adjust to current year
-                if concert_date.year < current_year:
-                    concert_date = concert_date.replace(year=current_year)
-                dates = [concert_date]
-            except ValueError as e:
-                print(f"Error parsing date {date_str}: {e}")
-                continue
-
-        # Retrieve times as a list (or default to venue's default times)
-        times_list = concert_data.get('times') or []
-        if not times_list:
-            print(f"Time missing for concert on {date_str}. Using default times from {venue_name}.")
-            times_list = venue_info.get('default_times', ["20:00"])
-
-        # Convert times to datetime objects
-        time_objects = []
-        for t in times_list:
-            try:
-                # Try parsing 12-hour format first
-                time_obj = datetime.strptime(t, '%I:%M %p').time()
-            except ValueError:
-                try:
-                    # Try 24-hour format
-                    time_obj = datetime.strptime(t, '%H:%M').time()
-                except ValueError:
-                    print(f"Invalid time format: {t}")
-                    continue
-            time_objects.append(time_obj)
-
-        if not time_objects:
-            print(f"No valid times found for concert on {date_str}")
-            continue
-
-        # Safely retrieve remaining fields
-        venue_name = (concert_data.get('venue') or venue_info['name']).strip()
-        address = (concert_data.get('address') or '').strip()
-        ticket_link = (concert_data.get('ticket_link') or '').strip()
-        price_range = (concert_data.get('price_range') or '').strip()
-        special_notes = (concert_data.get('special_notes') or '').strip()
-
         try:
+            concert_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            
+            # Check for existing concert with same venue, date and artist
+            existing_concert = (
+                session.query(Concert)
+                .join(Concert.artists)
+                .filter(
+                    Concert.venue_id == venue.id,
+                    Concert.date == concert_date,
+                    Artist.name == artist_name
+                )
+                .first()
+            )
+
+            if existing_concert:
+                print(f"Concert already exists for {artist_name} at {venue_name} on {concert_date}")
+                # Optionally update existing concert with new information
+                existing_concert.ticket_link = concert_data.get('ticket_link', existing_concert.ticket_link)
+                existing_concert.price_range = concert_data.get('price_range', existing_concert.price_range)
+                existing_concert.special_notes = concert_data.get('special_notes', existing_concert.special_notes)
+                session.commit()
+                continue
+
             # Get or create artist
             artist = session.query(Artist).filter_by(name=artist_name).first()
             if not artist:
@@ -195,58 +190,40 @@ def store_concert_data(session, concert_data_list, venue_info):
                 session.add(artist)
                 session.commit()
 
-            # Get or create venue
-            venue = session.query(Venue).filter_by(name=venue_name).first()
-            if not venue:
-                venue = Venue(
-                    name=venue_name,
-                    address=address,
-                    website_url=venue_info['url']
-                )
-                session.add(venue)
-                session.commit()
+            # Create new concert
+            concert = Concert(
+                venue_id=venue.id,
+                date=concert_date,
+                ticket_link=concert_data.get('ticket_link', ''),
+                price_range=concert_data.get('price_range', ''),
+                special_notes=concert_data.get('special_notes', ''),
+            )
+            concert.artists.append(artist)
 
-            # Create a concert for each date in the range
-            for concert_date in dates:
-                # Check for existing concert more thoroughly
-                existing_concert = (
-                    session.query(Concert)
-                    .join(Concert.artists)
-                    .filter(
-                        Concert.venue_id == venue.id,
-                        Concert.date == concert_date,
-                        Artist.name == artist_name
-                    )
-                    .first()
-                )
-
-                if existing_concert:
-                    print(f"Concert already exists for {artist_name} at {venue_name} on {concert_date}")
-                    continue
-
-                # Create new concert
-                concert = Concert(
-                    venue_id=venue.id,
-                    date=concert_date,
-                    ticket_link=ticket_link,
-                    price_range=price_range,
-                    special_notes=special_notes,
-                )
-                concert.artists.append(artist)
-
-                # Create child ConcertTime rows
-                for time_obj in time_objects:
-                    concert_time = ConcertTime(time=time_obj)
-                    concert.times.append(concert_time)
-
-                session.add(concert)
+            # Create child ConcertTime rows
+            times_list = concert_data.get('times') or venue_info.get('default_times', [])
+            for time_str in times_list:
                 try:
-                    session.commit()
-                    print(f"Added concert: {artist_name} at {venue_name} on {concert_date}")
-                except Exception as e:
-                    print(f"Error committing concert: {e}")
-                    session.rollback()
-                    continue
+                    # Try parsing 12-hour format first
+                    time_obj = datetime.strptime(time_str, '%I:%M %p').time()
+                except ValueError:
+                    try:
+                        # Try 24-hour format
+                        time_obj = datetime.strptime(time_str, '%H:%M').time()
+                    except ValueError:
+                        print(f"Invalid time format: {time_str}")
+                        continue
+                concert_time = ConcertTime(time=time_obj)
+                concert.times.append(concert_time)
+
+            session.add(concert)
+            try:
+                session.commit()
+                print(f"Added concert: {artist_name} at {venue_name} on {concert_date}")
+            except Exception as e:
+                print(f"Error committing concert: {e}")
+                session.rollback()
+                continue
 
         except Exception as e:
             print(f"Error processing concert data: {e}")
