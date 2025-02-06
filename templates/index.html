@@ -122,17 +122,18 @@
         <p>No upcoming concerts found.</p>
     {% else %}
         {% set current_date = None %}
+        <div class="date-group">
         {% for concert in concerts %}
             {% if concert.date != current_date %}
                 {% if current_date is not none %}
-                    </div>  <!-- Close concerts-for-date -->
-                </div>  <!-- Close date-group -->
+                    </div>  <!-- Close concerts-container -->
+                    </div>  <!-- Close previous date-group -->
+                    <div class="date-group">
                 {% endif %}
                 
                 {% set current_date = concert.date %}
-                <div class="date-group">
-                    <h2 class="date-header">{{ concert.date.strftime('%A, %B %d, %Y') }}</h2>
-                    <div class="concerts-for-date">
+                <h2 class="date-header">{{ concert.date.strftime('%A, %B %d, %Y') }}</h2>
+                <div class="concerts-container">
             {% endif %}
             
             <div class="concert-card">
@@ -173,7 +174,7 @@
         {% endfor %}
         
         {% if concerts %}
-            </div>  <!-- Close last concerts-for-date -->
+            </div>  <!-- Close last concerts-container -->
             </div>  <!-- Close last date-group -->
         {% endif %}
     {% endif %}
