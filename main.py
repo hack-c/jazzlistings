@@ -1,6 +1,6 @@
 from crawler import Crawler
 from parser import parse_html
-from database import Session, init_db
+from database import Session, SessionLocal, init_db
 from models import Artist, Venue, Concert, ConcertTime
 from datetime import datetime, timedelta
 
@@ -9,7 +9,6 @@ app = Flask(__name__)
 
 from collections import defaultdict
 from sqlalchemy import select
-from database import SessionLocal
 
 def main():
     """
