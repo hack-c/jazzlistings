@@ -1,3 +1,5 @@
+from firecrawl import FirecrawlApp
+from config import FIRECRAWL_API_KEY
 import requests
 from time import sleep
 
@@ -9,20 +11,22 @@ class Crawler:
 
     def __init__(self):
         # Set up a session with common headers
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        })
+        # self.session = requests.Session()
+        # self.session.headers.update({
+        #     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        # })
+        self.app = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
+
 
     def scrape_venue(self, url):
         """
-        Fetch the given URL and return the HTML content.
+        Fetch the given URL and return the Markdown content.
 
         Parameters:
             url (str): The URL of the website to scrape.
 
         Returns:
-            str: HTML content of the website, or None if fetching fails.
+            str: Markdown content of the website, or None if scraping fails.
         """
         max_retries = 3
         retry_delay = 1
@@ -33,20 +37,14 @@ class Crawler:
                 sleep(0.1)
                 
                 # Fetch the website content
-                response = self.session.get(
-                    url, 
-                    timeout=30,
-                    verify=True,  # Enforce SSL verification
-                    headers={
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.5',
-                        'Connection': 'keep-alive',
-                    }
-                )
-                response.raise_for_status()
-                
-                return response.text
+                            # Scrape the website and return the markdown content
+                scrape_result = self.app.scrape_url(
+                    url, params={'formats': ['markdown']})
+                sleep(6)
+                if 'markdown' in scrape_result:
+                    return scrape_result['markdown']
+                else:
+                    return None
                 
             except requests.exceptions.SSLError:
                 # Try again without SSL verification as fallback
