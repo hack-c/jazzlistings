@@ -8,18 +8,19 @@ client = OpenAI()
 
 def parse_markdown(markdown_content):
     """
-    Parse the markdown content to extract concert information using OpenAI GPT-4o.
-
-    Parameters:
-        markdown_content (str): The markdown content to parse.
-
-    Returns:
-        list: A list of dictionaries containing concert information, or None if parsing fails.
+    Parse markdown content to extract concert information using OpenAI GPT-4o.
     """
-    # Prepare the prompt for OpenAI
     prompt = f"""
     You are an assistant that extracts concert information from the following markdown content and provides it in JSON format.
     Focus on finding concert details like dates, times, artists, and venue information.
+
+    IMPORTANT PARSING RULES:
+    1. Extract ALL concerts, including those listed under "COMING SOON!"
+    2. For date ranges like "February 18 - February 23", create an entry for each day in the range
+    3. For listings without explicit times, use empty array for times
+    4. For "COMING SOON!" listings, include them with their dates and artists
+    5. Include any band member details in the special_notes field
+    6. For recurring events (like "Every Monday Night"), create an entry with special handling
 
     Markdown Content:
     {markdown_content[:640000]}
@@ -33,8 +34,8 @@ def parse_markdown(markdown_content):
             "venue": "Venue Name",
             "address": "Venue Address",
             "ticket_link": "URL",
-            "price_range": "$XX - $YY",
-            "special_notes": "Any special notes"
+            "price_range": null,
+            "special_notes": "Band members: Person1 (instrument), Person2 (instrument), ..."
         }},
         ...
     ]
@@ -45,6 +46,7 @@ def parse_markdown(markdown_content):
     - If a time is not specified or unclear, provide an empty array for times: []
     - If any other field is missing or unclear, use null
     - Assume all times are Eastern Time
+    - Include ALL band member details in special_notes
     
     Provide only the JSON array as the output.
     """
