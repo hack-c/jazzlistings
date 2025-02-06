@@ -47,36 +47,34 @@
         }
         
         .concert-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: #18293a;
             border-radius: 0;
             padding: 25px;
             margin-bottom: 25px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
         .artist {
             font-size: 1.4em;
             font-weight: 600;
-            color: #0b0c13;
             margin-bottom: 0.8em;
             text-transform: uppercase;
             letter-spacing: 0.02em;
         }
         
         .venue {
-            color: #18293a;
             margin-bottom: 0.8em;
             font-size: 1.1em;
         }
         
         .times {
-            color: #18293a;
             margin-bottom: 0.8em;
             font-size: 1.1em;
         }
         
         .price {
-            color: #18293a;
             font-size: 1.1em;
         }
         
@@ -100,7 +98,6 @@
         .special-notes {
             margin-top: 1em;
             font-style: italic;
-            color: #18293a;
         }
         
         @media (max-width: 600px) {
@@ -128,11 +125,12 @@
         {% for concert in concerts %}
             {% if concert.date != current_date %}
                 {% if current_date is not none %}
-                    </div>
+                    </div>  <!-- Close previous date-group -->
                 {% endif %}
                 {% set current_date = concert.date %}
                 <div class="date-group">
                     <h2 class="date-header">{{ concert.date.strftime('%A, %B %d, %Y') }}</h2>
+                    <div class="concerts-for-date">
             {% endif %}
             
             <div class="concert-card">
@@ -170,10 +168,12 @@
                     <div class="special-notes">{{ concert.special_notes }}</div>
                 {% endif %}
             </div>
+            
+            {% if loop.last %}
+                </div>  <!-- Close concerts-for-date -->
+                </div>  <!-- Close last date-group -->
+            {% endif %}
         {% endfor %}
-        {% if concerts %}
-            </div>
-        {% endif %}
     {% endif %}
 </body>
 </html> 
