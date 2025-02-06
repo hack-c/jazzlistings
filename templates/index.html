@@ -95,44 +95,52 @@
 <body>
     <h1>NYC Jazz Listings</h1>
     
-    {% set current_date = None %}
-    {% for concert in concerts %}
-        {% if concert.date != current_date %}
-            {% set current_date = concert.date %}
-            <h2 class="date-header">{{ concert.date.strftime('%A, %B %d, %Y') }}</h2>
-        {% endif %}
-        
-        <div class="concert-card">
-            <div class="artist">{{ concert.artist or 'TBA' }}</div>
+    {% if not concerts %}
+        <p>No upcoming concerts found.</p>
+    {% else %}
+        {% set current_date = None %}
+        {% for concert in concerts %}
+            {% if concert.date != current_date %}
+                {% set current_date = concert.date %}
+                <h2 class="date-header">{{ concert.date.strftime('%A, %B %d, %Y') }}</h2>
+            {% endif %}
             
-            <div class="venue">
-                {{ concert.venue }}
-                {% if concert.address %}
-                    <br>{{ concert.address }}
-                {% endif %}
-            </div>
-            
-            <div class="times">
-                {% if concert.times %}
-                    Times: 
-                    {% for time in concert.times %}
-                        {{ time.time.strftime('%-I:%M %p') }}{% if not loop.last %}, {% endif %}
+            <div class="concert-card">
+                <div class="artist">
+                    {% for artist in concert.artists %}
+                        {{ artist.name }}{% if not loop.last %}, {% endif %}
                     {% endfor %}
+                </div>
+                
+                <div class="venue">
+                    {{ concert.venue.name }}
+                    {% if concert.venue.address %}
+                        <br>{{ concert.venue.address }}
+                    {% endif %}
+                </div>
+                
+                <div class="times">
+                    {% if concert.times %}
+                        Times: 
+                        {% for time in concert.times %}
+                            {{ time.time.strftime('%-I:%M %p') }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                
+                {% if concert.price_range %}
+                    <div class="price">{{ concert.price_range }}</div>
+                {% endif %}
+                
+                {% if concert.ticket_link %}
+                    <a href="{{ concert.ticket_link }}" class="ticket-link" target="_blank">Get Tickets</a>
+                {% endif %}
+                
+                {% if concert.special_notes %}
+                    <div class="special-notes">{{ concert.special_notes }}</div>
                 {% endif %}
             </div>
-            
-            {% if concert.price_range %}
-                <div class="price">{{ concert.price_range }}</div>
-            {% endif %}
-            
-            {% if concert.ticket_link %}
-                <a href="{{ concert.ticket_link }}" class="ticket-link" target="_blank">Get Tickets</a>
-            {% endif %}
-            
-            {% if concert.special_notes %}
-                <div class="special-notes">{{ concert.special_notes }}</div>
-            {% endif %}
-        </div>
-    {% endfor %}
+        {% endfor %}
+    {% endif %}
 </body>
 </html> 

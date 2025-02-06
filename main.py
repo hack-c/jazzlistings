@@ -244,25 +244,41 @@ def index():
         today = datetime.now().date()
         thirty_days = today + timedelta(days=30)
         
-        # Query concerts ordered by date and filter for future dates
-        stmt = select(Concert).where(
-            Concert.date >= today,
-            Concert.date <= thirty_days
-        ).order_by(Concert.date)
+        # Query concerts with relationships
+        concerts = (
+            db.query(Concert)
+            .join(Concert.venue)
+            .join(Concert.artists)
+            .join(Concert.times)
+            .filter(
+                Concert.date >= today,
+                Concert.date <= thirty_days
+            )
+            .order_by(Concert.date)
+            .all()
+        )
         
-        concerts = db.execute(stmt).scalars().all()
+        # Debug print
+        print(f"Found {len(concerts)} concerts")
+        for c in concerts:
+            print(f"Concert on {c.date}: {', '.join(a.name for a in c.artists)} at {c.venue.name}")
         
         return render_template('index.html', 
                              concerts=concerts,
                              today=today)
+    except Exception as e:
+        print(f"Error in index route: {e}")
+        return f"Error loading concerts: {str(e)}", 500
     finally:
         db.close()
 
 if __name__ == '__main__':
     import sys
-    if "server" in sys.argv:
-        # Run the Flask dev server
-        app.run(debug=True)
+    if len(sys.argv) > 1 and "server" in sys.argv:
+        # Run only the Flask dev server
+        app.run(debug=True, host='0.0.0.0')
     else:
-        # Default to running the crawler logic
-        main()
+        # Run the crawler and then start the server
+        main()  # Run the crawler first
+        print("\nStarting web server...")
+        app.run(debug=True, host='0.0.0.0')  # Then start the server
