@@ -107,7 +107,10 @@ def store_concert_data(session, concert_data_list, venue_info):
         venue_info (dict): Venue information containing name and URL.
     """
     venue_name = venue_info['name']
+    print(f"\nProcessing concerts for {venue_name}")
+    
     for concert_data in concert_data_list:
+        print(f"\nProcessing concert data: {concert_data}")
         # Safely retrieve and strip artist/date fields if they exist
         artist_name = (concert_data.get('artist') or '').strip()
         date_str = (concert_data.get('date') or '').strip()
@@ -188,14 +191,20 @@ def store_concert_data(session, concert_data_list, venue_info):
 
             # Create a concert for each date in the range
             for concert_date in dates:
-                # Check for existing concert
+                # Check for existing concert more thoroughly
                 existing_concert = (
                     session.query(Concert)
-                    .filter_by(venue_id=venue.id, date=concert_date)
+                    .join(Concert.artists)
+                    .filter(
+                        Concert.venue_id == venue.id,
+                        Concert.date == concert_date,
+                        Artist.name == artist_name
+                    )
                     .first()
                 )
 
-                if existing_concert and artist in existing_concert.artists:
+                if existing_concert:
+                    print(f"Concert already exists for {artist_name} at {venue_name} on {concert_date}")
                     continue
 
                 # Create new concert
@@ -210,13 +219,20 @@ def store_concert_data(session, concert_data_list, venue_info):
 
                 # Create child ConcertTime rows
                 for time_obj in time_objects:
-                    concert.times.append(ConcertTime(time=time_obj))
+                    concert_time = ConcertTime(time=time_obj)
+                    concert.times.append(concert_time)
 
                 session.add(concert)
-                session.commit()
+                try:
+                    session.commit()
+                    print(f"Added concert: {artist_name} at {venue_name} on {concert_date}")
+                except Exception as e:
+                    print(f"Error committing concert: {e}")
+                    session.rollback()
+                    continue
 
         except Exception as e:
-            print(f"Error storing concert data: {e}")
+            print(f"Error processing concert data: {e}")
             session.rollback()
             continue
 
