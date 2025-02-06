@@ -125,8 +125,10 @@
         {% for concert in concerts %}
             {% if concert.date != current_date %}
                 {% if current_date is not none %}
-                    </div>  <!-- Close previous date-group -->
+                    </div>  <!-- Close concerts-for-date -->
+                </div>  <!-- Close date-group -->
                 {% endif %}
+                
                 {% set current_date = concert.date %}
                 <div class="date-group">
                     <h2 class="date-header">{{ concert.date.strftime('%A, %B %d, %Y') }}</h2>
@@ -168,12 +170,12 @@
                     <div class="special-notes">{{ concert.special_notes }}</div>
                 {% endif %}
             </div>
-            
-            {% if loop.last %}
-                </div>  <!-- Close concerts-for-date -->
-                </div>  <!-- Close last date-group -->
-            {% endif %}
         {% endfor %}
+        
+        {% if concerts %}
+            </div>  <!-- Close last concerts-for-date -->
+            </div>  <!-- Close last date-group -->
+        {% endif %}
     {% endif %}
 </body>
 </html> 
