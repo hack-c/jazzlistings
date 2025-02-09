@@ -1,170 +1,37 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NYC Jazz Listings</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #18293a;
-            color: #0b0c13;
-        }
-        
-        h1 {
-            font-size: 3.5em;
-            font-weight: 700;
-            font-style: italic;
-            text-transform: uppercase;
-            margin-bottom: 1em;
-            color: #0b0c13;
-            letter-spacing: 0.05em;
-            line-height: 1.2;
-            font-family: "Times New Roman", Times, serif;
-        }
-        
-        .date-group {
-            margin-bottom: 3em;
-        }
-        
-        .concert-card:first-of-type {
-            margin-top: 1em;
-        }
-        
-        .date-header {
-            font-size: 1.8em;
-            font-weight: 600;
-            margin: 2em 0 0.5em;
-            color: #0b0c13;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            padding-bottom: 0.3em;
-        }
-        
-        .concert-card {
-            background: #18293a;
-            border-radius: 0;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            color: #0b0c13;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .artist {
-            font-size: 1.4em;
-            font-weight: 600;
-            margin-bottom: 0.8em;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-        }
-        
-        .venue {
-            margin-bottom: 0.8em;
-            font-size: 1.1em;
-        }
-        
-        .times {
-            margin-bottom: 0.8em;
-            font-size: 1.1em;
-        }
-        
-        .price {
-            font-size: 1.1em;
-        }
-        
-        .ticket-link {
-            display: inline-block;
-            margin-top: 1em;
-            padding: 8px 16px;
-            background: #18293a;
-            color: #0b0c13;
-            text-decoration: none;
-            border-radius: 0;
-            font-size: 0.9em;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        
-        .ticket-link:hover {
-            background: #0b0c13;
-        }
-        
-        .special-notes {
-            margin-top: 1em;
-            font-style: italic;
-        }
-        
-        @media (max-width: 600px) {
-            body {
-                padding: 15px;
-            }
-            
-            h1 {
-                font-size: 2.5em;
-            }
-            
-            .concert-card {
-                padding: 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <h1>NYC Jazz Listings</h1>
+{% extends "base.html" %}
+
+{% block content %}
+<div class="concerts">
+    <h1>Upcoming Concerts</h1>
     
-    {% if not concerts_by_date %}
-        <p>No upcoming concerts found.</p>
-    {% else %}
-        {% for date, concerts in concerts_by_date.items() %}
-            <div class="date-group">
-                <h2 class="date-header">{{ date.strftime('%A, %B %d, %Y') }}</h2>
-                <div class="concerts-container">
-                    {% for concert in concerts %}
-                        <div class="concert-card">
-                            <div class="artist">
-                                {% for artist in concert.artists %}
-                                    {{ artist.name }}{% if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            </div>
-                            
-                            <div class="venue">
-                                {{ concert.venue.name }}
-                                {% if concert.venue.address %}
-                                    <br>{{ concert.venue.address }}
-                                {% endif %}
-                            </div>
-                            
-                            <div class="times">
-                                {% if concert.times %}
-                                    Times: 
-                                    {% for time in concert.times %}
-                                        {{ time.time.strftime('%-I:%M %p') }}{% if not loop.last %}, {% endif %}
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-                            
-                            {% if concert.price_range %}
-                                <div class="price">{{ concert.price_range }}</div>
-                            {% endif %}
-                            
-                            {% if concert.ticket_link %}
-                                <a href="{{ concert.ticket_link }}" class="ticket-link" target="_blank">Get Tickets</a>
-                            {% endif %}
-                            
-                            {% if concert.special_notes %}
-                                <div class="special-notes">{{ concert.special_notes }}</div>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
+    {% for date, concerts in concerts_by_date.items() %}
+    <div class="date-section">
+        <h2>{{ date.strftime('%A, %B %d, %Y') }}</h2>
+        
+        {% for concert in concerts %}
+        <div class="concert-card">
+            <div class="venue">{{ concert.venue.name }}</div>
+            <div class="artists">
+                {% for artist in concert.artists %}
+                <span class="artist">{{ artist.name }}</span>
+                {% endfor %}
             </div>
+            <div class="times">
+                {% for time in concert.times %}
+                <span class="time">{{ time.time.strftime('%-I:%M %p') }}</span>
+                {% endfor %}
+            </div>
+            {% if concert.ticket_link %}
+            <div class="tickets">
+                <a href="{{ concert.ticket_link }}" target="_blank">Tickets</a>
+            </div>
+            {% endif %}
+            {% if concert.special_notes %}
+            <div class="notes">{{ concert.special_notes }}</div>
+            {% endif %}
+        </div>
         {% endfor %}
-    {% endif %}
-</body>
-</html> 
+    </div>
+    {% endfor %}
+</div>
+{% endblock %} 

@@ -1,14 +1,61 @@
-<nav>
-    {% if user %}
-        <span>Welcome, {{ user.email }}!</span>
-        {% if user.spotify_token %}
-            <span>Connected to Spotify</span>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC Concert Finder</title>
+    <style>
+        /* Add some basic styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        nav {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
+        .concert-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .venue {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .artists {
+            margin: 10px 0;
+        }
+        .time {
+            color: #666;
+            margin-right: 10px;
+        }
+        .date-section {
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        {% if user %}
+            <span>Welcome, {{ user.email }}!</span>
+            {% if user.spotify_token %}
+                <span>Connected to Spotify</span>
+            {% else %}
+                <a href="{{ url_for('auth.spotify_login') }}">Connect Spotify</a>
+            {% endif %}
+            <a href="{{ url_for('auth.logout') }}">Logout</a>
         {% else %}
-            <a href="{{ url_for('auth.spotify_login') }}">Connect Spotify</a>
+            <a href="{{ url_for('auth.login') }}">Login</a>
+            <a href="{{ url_for('auth.signup') }}">Sign Up</a>
         {% endif %}
-        <a href="{{ url_for('auth.logout') }}">Logout</a>
-    {% else %}
-        <a href="{{ url_for('auth.login') }}">Login</a>
-        <a href="{{ url_for('auth.signup') }}">Sign Up</a>
-    {% endif %}
-</nav> 
+    </nav>
+
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html> 
