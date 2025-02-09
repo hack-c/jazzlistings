@@ -16,6 +16,7 @@ from auth import auth
 from dotenv import load_dotenv
 from threading import Thread
 import atexit
+from sqlalchemy.orm import joinedload
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -30,12 +31,14 @@ def index():
         today = datetime.now().date()
         thirty_days = today + timedelta(days=30)
         
-        # Query concerts with relationships
+        # Query concerts with all needed relationships eagerly loaded
         concerts = (
             db.query(Concert)
-            .join(Concert.venue)
-            .join(Concert.artists)
-            .join(Concert.times)
+            .options(
+                joinedload(Concert.venue),
+                joinedload(Concert.artists),
+                joinedload(Concert.times)
+            )
             .filter(
                 Concert.date >= today,
                 Concert.date <= thirty_days
@@ -44,16 +47,24 @@ def index():
             .all()
         )
         
-        # Group concerts by date
+        # Group concerts by date - create a copy of data while session is open
         concerts_by_date = {}
         for concert in concerts:
             if concert.date not in concerts_by_date:
                 concerts_by_date[concert.date] = []
-            concerts_by_date[concert.date].append(concert)
+            # Create a dict with all the data we need
+            concert_data = {
+                'venue_name': concert.venue.name,
+                'artists': [{'name': artist.name} for artist in concert.artists],
+                'times': [{'time': time.time} for time in concert.times],
+                'ticket_link': concert.ticket_link,
+                'special_notes': concert.special_notes
+            }
+            concerts_by_date[concert.date].append(concert_data)
         
         return render_template('index.html', 
-                            concerts_by_date=concerts_by_date,
-                            today=today)
+                             concerts_by_date=concerts_by_date,
+                             today=today)
     finally:
         db.close()
 

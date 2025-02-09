@@ -10,7 +10,7 @@
         
         {% for concert in concerts %}
         <div class="concert-card">
-            <div class="venue">{{ concert.venue.name }}</div>
+            <div class="venue">{{ concert.venue_name }}</div>
             <div class="artists">
                 {% for artist in concert.artists %}
                 <span class="artist">{{ artist.name }}</span>
