@@ -289,44 +289,47 @@ def store_concert_data(session, concert_data_list, venue_info):
             session.rollback()
             continue
 
-@app.route('/')
-def index():
-    db = SessionLocal()
-    try:
-        today = datetime.now().date()
-        thirty_days = today + timedelta(days=30)
-        
-        # Query concerts with relationships
-        concerts = (
-            db.query(Concert)
-            .join(Concert.venue)
-            .join(Concert.artists)
-            .join(Concert.times)
-            .filter(
-                Concert.date >= today,
-                Concert.date <= thirty_days
-            )
-            .order_by(Concert.date)
-            .all()
-        )
-        
-        # Group concerts by date
-        concerts_by_date = {}
-        for concert in concerts:
-            if concert.date not in concerts_by_date:
-                concerts_by_date[concert.date] = []
-            concerts_by_date[concert.date].append(concert)
-        
-        return render_template('index.html', 
-                             concerts_by_date=concerts_by_date,
-                             today=today)
-    finally:
-        db.close()
-
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
+    
+    # Register blueprints
     app.register_blueprint(auth)
+    
+    # Register routes
+    @app.route('/')
+    def index():
+        db = SessionLocal()
+        try:
+            today = datetime.now().date()
+            thirty_days = today + timedelta(days=30)
+            
+            # Query concerts with relationships
+            concerts = (
+                db.query(Concert)
+                .join(Concert.venue)
+                .join(Concert.artists)
+                .join(Concert.times)
+                .filter(
+                    Concert.date >= today,
+                    Concert.date <= thirty_days
+                )
+                .order_by(Concert.date)
+                .all()
+            )
+            
+            # Group concerts by date
+            concerts_by_date = {}
+            for concert in concerts:
+                if concert.date not in concerts_by_date:
+                    concerts_by_date[concert.date] = []
+                concerts_by_date[concert.date].append(concert)
+            
+            return render_template('index.html', 
+                                concerts_by_date=concerts_by_date,
+                                today=today)
+        finally:
+            db.close()
     
     # Initialize DB once at app creation
     init_db()
@@ -353,7 +356,6 @@ if __name__ == '__main__':
     import sys
     
     if len(sys.argv) > 1 and "server" in sys.argv:
-        # Run only the Flask dev server
         app.run(debug=True, host='0.0.0.0')
     else:
         print("\nStarting web server...")
