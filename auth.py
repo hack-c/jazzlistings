@@ -1,4 +1,12 @@
-from flask import Blueprint, session, redirect, url_for, request, flash
+from flask import (
+    Blueprint, 
+    session, 
+    redirect, 
+    url_for, 
+    request, 
+    flash, 
+    render_template
+)
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import spotipy
