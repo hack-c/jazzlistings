@@ -1,0 +1,14 @@
+<nav>
+    {% if user %}
+        <span>Welcome, {{ user.email }}!</span>
+        {% if user.spotify_token %}
+            <span>Connected to Spotify</span>
+        {% else %}
+            <a href="{{ url_for('auth.spotify_login') }}">Connect Spotify</a>
+        {% endif %}
+        <a href="{{ url_for('auth.logout') }}">Logout</a>
+    {% else %}
+        <a href="{{ url_for('auth.login') }}">Login</a>
+        <a href="{{ url_for('auth.signup') }}">Sign Up</a>
+    {% endif %}
+</nav> 

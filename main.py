@@ -1,19 +1,37 @@
 from crawler import Crawler
 from parser import parse_markdown
 from database import Session, SessionLocal, init_db
-from models import Artist, Venue, Concert, ConcertTime
+from models import Artist, Venue, Concert, ConcertTime, User
 from datetime import datetime, timedelta
 from time import sleep
 import random
 from tenacity import retry, stop_after_attempt, wait_exponential
-
-from flask import Flask, render_template
-app = Flask(__name__)
-
+from flask import Flask, render_template, session
 from collections import defaultdict
 from sqlalchemy import select
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import concurrent.futures
+import os
+from auth import auth
+from dotenv import load_dotenv
+
+app = Flask(__name__)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')  # Change in production
+app.register_blueprint(auth)
+
+load_dotenv()  # Add this near the top of main.py
+
+# Add user context processor
+@app.context_processor
+def inject_user():
+    if 'user_id' in session:
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter_by(id=session['user_id']).first()
+            return {'user': user}
+        finally:
+            db.close()
+    return {'user': None}
 
 def process_venue(venue_info, session):
     """Process a single venue with strict rate limiting"""
@@ -112,7 +130,20 @@ def main():
         {'name': 'Swing 46', 'url': 'https://swing46.nyc/calendar/', 'default_times': ['8:30 PM', '10:30 PM']},
         {'name': 'The Appel Room', 'url': 'https://www.lincolncenter.org/venue/the-appel-room/v/calendar', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'Symphony Space', 'url': 'https://www.symphonyspace.org/events', 'default_times': ['7:00 PM', '9:00 PM']},
-        {'name': 'Le Poisson Rouge', 'url': 'https://www.lpr.com/', 'default_times': ['7:00 PM', '9:30 PM']}
+        {'name': 'Le Poisson Rouge', 'url': 'https://www.lpr.com/', 'default_times': ['7:00 PM', '9:30 PM']},
+        {'name': 'Mansions', 'url': 'https://ra.co/clubs/197275', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': 'Knockdown Center', 'url': 'https://knockdown.center/upcoming/', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': 'Jupiter Disco', 'url': 'https://ra.co/clubs/128789', 'default_times': ['Daily 10:00 PM - 4:00 AM']},
+        {'name': 'Bossa Nova Civic Club', 'url': 'https://ra.co/clubs/71292', 'default_times': ['Daily 10:00 PM - 4:00 AM']},
+        {'name': 'House of Yes', 'url': 'https://www.houseofyes.org/calendar', 'default_times': ['Thursday 10:00 PM - 4:00 AM', 'Friday 10:00 PM - 4:00 AM']},
+        {'name': 'Elsewhere', 'url': 'https://www.elsewherebrooklyn.com/calendar', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': 'Good Room', 'url': 'https://donyc.com/venues/good-room', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': 'Nowadays', 'url': 'https://nowadays.nyc/all-events', 'default_times': ['Friday 10:00 PM - 6:00 AM', 'Sunday 3:00 PM - 9:00 PM']},
+        {'name': 'Public Records', 'url': 'https://publicrecords.nyc/sound-room/', 'default_times': ['Thursday 7:00 PM - 12:00 AM', 'Saturday 11:00 PM - 4:00 AM']},
+        {'name': 'The Sultan Room', 'url': 'https://www.thesultanroom.com/calendar', 'default_times': ['Friday 8:00 PM - 1:00 AM', 'Saturday 8:00 PM - 1:00 AM']},
+        {'name': 'Black Flamingo', 'url': 'https://www.blackflamingonyc.com/events', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': '3 Dollar Bill', 'url': 'https://www.3dollarbillbk.com/rsvp', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+
         
     ]
 

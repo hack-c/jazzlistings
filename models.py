@@ -12,6 +12,8 @@ from sqlalchemy import (
     Date,
     Time,
     UniqueConstraint,
+    Boolean,
+    JSON,
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
@@ -44,6 +46,31 @@ class Venue(Base):
     address = Column(String)
     website_url = Column(String)
 
+class User(Base):
+    __tablename__ = 'users'
+    
+    id = Column(Integer, primary_key=True)
+    email = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    spotify_token = Column(JSON, nullable=True)  # Stores access and refresh tokens
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationship to track favorite concerts
+    favorite_concerts = relationship(
+        'Concert',
+        secondary='user_favorites',
+        back_populates='favorited_by'
+    )
+
+# Association table for user favorites
+user_favorites = Table(
+    'user_favorites',
+    Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('concert_id', Integer, ForeignKey('concerts.id'), primary_key=True)
+)
+
 class Concert(Base):
     __tablename__ = 'concerts'
     
@@ -60,6 +87,11 @@ class Concert(Base):
                          secondary=concert_artists,
                          back_populates='concerts')
     times = relationship('ConcertTime', back_populates='concert', cascade='all, delete-orphan')
+    favorited_by = relationship(
+        'User',
+        secondary='user_favorites',
+        back_populates='favorite_concerts'
+    )
     
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
