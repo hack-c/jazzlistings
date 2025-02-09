@@ -15,6 +15,7 @@ import os
 from auth import auth
 from dotenv import load_dotenv
 from threading import Thread
+import atexit
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')  # Change in production
@@ -324,6 +325,19 @@ def index():
     finally:
         db.close()
 
+def create_app():
+    app = Flask(__name__)
+    app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
+    app.register_blueprint(auth)
+    
+    # Start scraper when app is created
+    scraper_thread = start_scraper()
+    
+    # Register cleanup for when the app shuts down
+    atexit.register(lambda: scraper_thread.join(timeout=1.0))
+    
+    return app
+
 def start_scraper():
     """Run the scraper in a background thread"""
     print("Starting scraper in background...")
@@ -331,11 +345,8 @@ def start_scraper():
     scraper_thread.start()
     return scraper_thread
 
-@app.before_first_request
-def initialize():
-    """Initialize the app before the first request"""
-    init_db()
-    start_scraper()
+# Create the app
+app = create_app()
 
 if __name__ == '__main__':
     import sys
@@ -345,7 +356,5 @@ if __name__ == '__main__':
         # Run only the Flask dev server
         app.run(debug=True, host='0.0.0.0')
     else:
-        # Start scraper in background and run server
-        start_scraper()
         print("\nStarting web server...")
         app.run(debug=True, host='0.0.0.0')
