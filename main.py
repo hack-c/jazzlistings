@@ -81,8 +81,6 @@ def main():
     """
     Main function that orchestrates the crawling, parsing, and storing of concert data.
     """
-    # Initialize the database
-    init_db()
     session = Session()
 
     # List of venue websites to crawl
@@ -330,6 +328,9 @@ def create_app():
     app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
     app.register_blueprint(auth)
     
+    # Initialize DB once at app creation
+    init_db()
+    
     # Start scraper when app is created
     scraper_thread = start_scraper()
     
@@ -345,12 +346,11 @@ def start_scraper():
     scraper_thread.start()
     return scraper_thread
 
-# Create the app
+# Create the app (this will initialize DB once)
 app = create_app()
 
 if __name__ == '__main__':
     import sys
-    init_db()  # Initialize DB before starting anything
     
     if len(sys.argv) > 1 and "server" in sys.argv:
         # Run only the Flask dev server

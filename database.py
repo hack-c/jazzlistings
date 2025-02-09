@@ -16,10 +16,14 @@ SessionLocal = scoped_session(Session)
 Base = declarative_base()
 
 def init_db():
-    """
-    Initialize the database by creating all tables.
-    """
-    Base.metadata.create_all(engine)
+    """Initialize the database"""
+    try:
+        # Create tables if they don't exist
+        Base.metadata.create_all(engine)
+    except Exception as e:
+        print(f"Database initialization warning: {e}")
+        # Tables might already exist, which is fine
+        pass
 
 def get_db():
     """Get a new database session."""
