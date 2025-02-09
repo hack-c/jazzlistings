@@ -14,6 +14,7 @@ import concurrent.futures
 import os
 from auth import auth
 from dotenv import load_dotenv
+from threading import Thread
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')  # Change in production
@@ -323,13 +324,28 @@ def index():
     finally:
         db.close()
 
+def start_scraper():
+    """Run the scraper in a background thread"""
+    print("Starting scraper in background...")
+    scraper_thread = Thread(target=main, daemon=True)
+    scraper_thread.start()
+    return scraper_thread
+
+@app.before_first_request
+def initialize():
+    """Initialize the app before the first request"""
+    init_db()
+    start_scraper()
+
 if __name__ == '__main__':
     import sys
+    init_db()  # Initialize DB before starting anything
+    
     if len(sys.argv) > 1 and "server" in sys.argv:
         # Run only the Flask dev server
         app.run(debug=True, host='0.0.0.0')
     else:
-        # Run the crawler and then start the server
-        main()  # Run the crawler first
+        # Start scraper in background and run server
+        start_scraper()
         print("\nStarting web server...")
-        app.run(debug=True, host='0.0.0.0')  # Then start the server
+        app.run(debug=True, host='0.0.0.0')
