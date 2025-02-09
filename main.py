@@ -18,12 +18,45 @@ from threading import Thread
 import atexit
 
 app = Flask(__name__)
-app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')  # Change in production
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
 app.register_blueprint(auth)
 
-load_dotenv()  # Add this near the top of main.py
+load_dotenv()
 
-# Add user context processor
+@app.route('/')
+def index():
+    db = SessionLocal()
+    try:
+        today = datetime.now().date()
+        thirty_days = today + timedelta(days=30)
+        
+        # Query concerts with relationships
+        concerts = (
+            db.query(Concert)
+            .join(Concert.venue)
+            .join(Concert.artists)
+            .join(Concert.times)
+            .filter(
+                Concert.date >= today,
+                Concert.date <= thirty_days
+            )
+            .order_by(Concert.date)
+            .all()
+        )
+        
+        # Group concerts by date
+        concerts_by_date = {}
+        for concert in concerts:
+            if concert.date not in concerts_by_date:
+                concerts_by_date[concert.date] = []
+            concerts_by_date[concert.date].append(concert)
+        
+        return render_template('index.html', 
+                            concerts_by_date=concerts_by_date,
+                            today=today)
+    finally:
+        db.close()
+
 @app.context_processor
 def inject_user():
     if 'user_id' in session:
@@ -143,8 +176,6 @@ def main():
         {'name': 'The Sultan Room', 'url': 'https://www.thesultanroom.com/calendar', 'default_times': ['Friday 8:00 PM - 1:00 AM', 'Saturday 8:00 PM - 1:00 AM']},
         {'name': 'Black Flamingo', 'url': 'https://www.blackflamingonyc.com/events', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
         {'name': '3 Dollar Bill', 'url': 'https://www.3dollarbillbk.com/rsvp', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-
-        
     ]
 
     # Process only 2 venues concurrently to stay under rate limit
@@ -180,11 +211,6 @@ def main():
 
     session.close()
     print("\nAll venues processed")
-
-
-# -- In store_concert_data, replace your existing block for extracting artist_name, date, times, etc.
-# -- with the following safer calls to avoid .strip() on NoneTypes. We also remove .strip() for times
-# -- since it's expected to be a list, not a string.
 
 def store_concert_data(session, concert_data_list, venue_info):
     """
@@ -289,59 +315,6 @@ def store_concert_data(session, concert_data_list, venue_info):
             session.rollback()
             continue
 
-def create_app():
-    app = Flask(__name__)
-    app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
-    
-    # Register blueprints
-    app.register_blueprint(auth)
-    
-    # Register routes
-    @app.route('/')
-    def index():
-        db = SessionLocal()
-        try:
-            today = datetime.now().date()
-            thirty_days = today + timedelta(days=30)
-            
-            # Query concerts with relationships
-            concerts = (
-                db.query(Concert)
-                .join(Concert.venue)
-                .join(Concert.artists)
-                .join(Concert.times)
-                .filter(
-                    Concert.date >= today,
-                    Concert.date <= thirty_days
-                )
-                .order_by(Concert.date)
-                .all()
-            )
-            
-            # Group concerts by date
-            concerts_by_date = {}
-            for concert in concerts:
-                if concert.date not in concerts_by_date:
-                    concerts_by_date[concert.date] = []
-                concerts_by_date[concert.date].append(concert)
-            
-            return render_template('index.html', 
-                                concerts_by_date=concerts_by_date,
-                                today=today)
-        finally:
-            db.close()
-    
-    # Initialize DB once at app creation
-    init_db()
-    
-    # Start scraper when app is created
-    scraper_thread = start_scraper()
-    
-    # Register cleanup for when the app shuts down
-    atexit.register(lambda: scraper_thread.join(timeout=1.0))
-    
-    return app
-
 def start_scraper():
     """Run the scraper in a background thread"""
     print("Starting scraper in background...")
@@ -349,11 +322,16 @@ def start_scraper():
     scraper_thread.start()
     return scraper_thread
 
-# Create the app (this will initialize DB once)
-app = create_app()
+def initialize_app():
+    """Initialize the application"""
+    init_db()
+    scraper_thread = start_scraper()
+    atexit.register(lambda: scraper_thread.join(timeout=1.0))
 
 if __name__ == '__main__':
     import sys
+    
+    initialize_app()
     
     if len(sys.argv) > 1 and "server" in sys.argv:
         app.run(debug=True, host='0.0.0.0')
