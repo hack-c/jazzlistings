@@ -24,6 +24,11 @@ app.register_blueprint(auth)
 
 load_dotenv()
 
+print("Environment Variables:")
+print(f"SPOTIFY_CLIENT_ID: {'set' if SPOTIFY_CLIENT_ID else 'not set'}")
+print(f"SPOTIFY_CLIENT_SECRET: {'set' if SPOTIFY_CLIENT_SECRET else 'not set'}")
+print(f"SPOTIFY_REDIRECT_URI: {SPOTIFY_REDIRECT_URI}")
+
 @app.route('/')
 def index():
     db = SessionLocal()
@@ -342,10 +347,20 @@ def initialize_app():
 if __name__ == '__main__':
     import sys
     
-    initialize_app()
+    # Parse command line arguments
+    run_scraper = True
+    if len(sys.argv) > 1:
+        if "no-scrape" in sys.argv:
+            run_scraper = False
+            print("\nStarting web server without scraper...")
+        elif "server" in sys.argv:
+            print("\nStarting web server with scraper...")
     
-    if len(sys.argv) > 1 and "server" in sys.argv:
-        app.run(debug=True, host='0.0.0.0')
-    else:
-        print("\nStarting web server...")
-        app.run(debug=True, host='0.0.0.0')
+    # Initialize based on arguments
+    init_db()
+    if run_scraper:
+        scraper_thread = start_scraper()
+        atexit.register(lambda: scraper_thread.join(timeout=1.0))
+    
+    # Run the server
+    app.run(debug=True, host='0.0.0.0', ssl_context='adhoc')

@@ -12,27 +12,46 @@ SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://localhost:5000/callback')
 
 def create_spotify_oauth():
-    return SpotifyOAuth(
+    oauth = SpotifyOAuth(
         client_id=SPOTIFY_CLIENT_ID,
         client_secret=SPOTIFY_CLIENT_SECRET,
         redirect_uri=SPOTIFY_REDIRECT_URI,
         scope='user-library-read playlist-modify-public user-read-email',
-        show_dialog=True
+        show_dialog=True,
+        cache_handler=None  # Disable caching to avoid issues
     )
+    print(f"OAuth created with client_id: {SPOTIFY_CLIENT_ID[:5]}...")  # Debug print (only first 5 chars for security)
+    print(f"Redirect URI set to: {SPOTIFY_REDIRECT_URI}")  # Debug print
+    return oauth
 
 @auth.route('/login')
 def login():
     """Redirect to Spotify login"""
     sp_oauth = create_spotify_oauth()
     auth_url = sp_oauth.get_authorize_url()
+    print(f"Spotify Auth URL: {auth_url}")  # Debug print
+    print(f"Redirect URI: {SPOTIFY_REDIRECT_URI}")  # Debug print
     return redirect(auth_url)
 
 @auth.route('/callback')
 def callback():
     """Handle Spotify OAuth callback"""
+    print("Callback received!")  # Debug print
+    print(f"Request args: {request.args}")  # Debug print
     sp_oauth = create_spotify_oauth()
     code = request.args.get('code')
-    token_info = sp_oauth.get_access_token(code)
+    if not code:
+        print("No code received in callback")  # Debug print
+        flash('Authentication failed')
+        return redirect(url_for('index'))
+    
+    try:
+        token_info = sp_oauth.get_access_token(code)
+        print("Token received successfully")  # Debug print
+    except Exception as e:
+        print(f"Error getting token: {e}")  # Debug print
+        flash('Authentication failed')
+        return redirect(url_for('index'))
     
     # Get user info from Spotify
     sp = spotipy.Spotify(auth=token_info['access_token'])
