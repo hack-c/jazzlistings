@@ -13,12 +13,13 @@
             <div class="venue">{{ concert.venue_name }}</div>
             <div class="artists">
                 {% for artist in concert.artists %}
-                <span class="artist">{{ artist.name }}</span>
+                    <span class="artist">{{ artist.name }}</span>
+                    {% if not loop.last %}, {% endif %}
                 {% endfor %}
             </div>
             {% if concert.spotify_score > 0 %}
                 <div class="spotify-match-indicator">
-                    <i class="fa fa-spotify"></i> In Your Library
+                    <i class="fa fa-spotify"></i> Artist in Your Spotify Library
                 </div>
             {% endif %}
             <div class="times">

@@ -75,32 +75,39 @@ def index():
             user = db.query(User).filter_by(id=session['user_id']).first()
             if user and user.spotify_token:
                 try:
+                    print("\nFetching Spotify data...")
                     sp = spotipy.Spotify(auth=user.spotify_token['access_token'])
                     
                     # Get user's saved tracks
+                    print("Fetching saved tracks...")
                     saved_tracks = sp.current_user_saved_tracks(limit=50)
                     for item in saved_tracks['items']:
                         for artist in item['track']['artists']:
                             spotify_artists.add(artist['name'].lower())
                     
                     # Get user's top artists
+                    print("Fetching top artists...")
                     top_artists = sp.current_user_top_artists(limit=50)
                     for artist in top_artists['items']:
                         spotify_artists.add(artist['name'].lower())
                     
                     # Get user's playlists and their tracks
+                    print("Fetching playlist tracks...")
                     playlists = sp.current_user_playlists(limit=50)
                     for playlist in playlists['items']:
-                        if playlist['owner']['id'] == sp.me()['id']:  # Only user's playlists
+                        if playlist['owner']['id'] == sp.me()['id']:
                             tracks = sp.playlist_tracks(playlist['id'], limit=100)
                             for item in tracks['items']:
                                 if item['track']:
                                     for artist in item['track']['artists']:
                                         spotify_artists.add(artist['name'].lower())
+                    
+                    print(f"Found {len(spotify_artists)} unique artists in Spotify library")
+                    print("Sample of Spotify artists:", list(spotify_artists)[:5])
                 except Exception as e:
                     print(f"Error fetching Spotify data: {e}")
         
-        # Group concerts by date and sort by Spotify relevance
+        # Group concerts and check for matches
         concerts_by_date = {}
         for concert in concerts:
             if concert.date not in concerts_by_date:
@@ -108,10 +115,15 @@ def index():
             
             # Calculate Spotify relevance score
             spotify_score = 0
+            matched_artist = None
             if spotify_artists:
                 for artist in concert.artists:
-                    if artist.name.lower() in spotify_artists:
+                    artist_name = artist.name.lower()
+                    print(f"Checking concert artist: {artist_name}")
+                    if artist_name in spotify_artists:
                         spotify_score = 1
+                        matched_artist = artist.name
+                        print(f"Found match: {matched_artist}")
                         break
             
             concert_data = {
@@ -122,11 +134,15 @@ def index():
                 'special_notes': concert.special_notes,
                 'spotify_score': spotify_score
             }
+            
+            if spotify_score > 0:
+                print(f"Adding concert with match: {matched_artist} at {concert.venue.name}")
+            
             concerts_by_date[concert.date].append(concert_data)
             
-            # Sort concerts within each date by Spotify relevance
-            for date in concerts_by_date:
-                concerts_by_date[date].sort(key=lambda x: x['spotify_score'], reverse=True)
+        # Sort concerts within each date by Spotify relevance
+        for date in concerts_by_date:
+            concerts_by_date[date].sort(key=lambda x: x['spotify_score'], reverse=True)
         
         return render_template('index.html', 
                              concerts_by_date=concerts_by_date,
