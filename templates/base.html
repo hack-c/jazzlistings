@@ -84,21 +84,28 @@
             font-style: italic;
             color: #6c757d;
         }
+        .spotify-login {
+            background-color: #1DB954;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .spotify-login:hover {
+            background-color: #1ed760;
+        }
     </style>
 </head>
 <body>
     <nav>
         {% if user %}
             <span>Welcome, {{ user.email }}!</span>
-            {% if user.spotify_token %}
-                <span>Connected to Spotify</span>
-            {% else %}
-                <a href="{{ url_for('auth.spotify_login') }}">Connect Spotify</a>
-            {% endif %}
             <a href="{{ url_for('auth.logout') }}">Logout</a>
         {% else %}
-            <a href="{{ url_for('auth.login') }}">Login</a>
-            <a href="{{ url_for('auth.signup') }}">Sign Up</a>
+            <a href="{{ url_for('auth.login') }}" class="spotify-login">
+                Login with Spotify
+            </a>
         {% endif %}
     </nav>
 
