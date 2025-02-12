@@ -16,7 +16,14 @@ def create_spotify_oauth():
         client_id=SPOTIFY_CLIENT_ID,
         client_secret=SPOTIFY_CLIENT_SECRET,
         redirect_uri=SPOTIFY_REDIRECT_URI,
-        scope='user-library-read playlist-modify-public user-read-email',
+        scope=' '.join([
+            'user-library-read',
+            'playlist-modify-public',
+            'user-read-email',
+            'user-top-read',
+            'playlist-read-private',
+            'user-follow-read'
+        ]),
         show_dialog=True,
         cache_handler=None  # Disable caching to avoid issues
     )
