@@ -243,12 +243,35 @@ def scrape_with_retry(crawler, url, venue_name):
             sleep(random.uniform(15, 20))
         raise
 
-def main():
+def calculate_scrape_params(venue_count):
+    """Calculate scraping parameters based on rate limits
+    - 3000 pages/month = ~100 pages/day
+    - 20 scrapes/minute = 1 scrape per 3 seconds
     """
-    Main function that orchestrates the crawling, parsing, and storing of concert data.
-    """
-    session = Session()
+    RATE_LIMIT_PER_MIN = 20
+    SECONDS_PER_MIN = 60
+    MIN_DELAY = SECONDS_PER_MIN / RATE_LIMIT_PER_MIN  # 3 seconds minimum between requests
+    
+    # Add safety margin - use 15 per minute instead of 20
+    SAFE_RATE_LIMIT = 15
+    SAFE_DELAY = SECONDS_PER_MIN / SAFE_RATE_LIMIT  # 4 seconds between requests
+    
+    # Calculate batch size based on venue count
+    # If we have 60 venues, and want to scrape each daily, that's 60/24 = 2.5 venues per hour
+    HOURS_PER_DAY = 24
+    venues_per_hour = venue_count / HOURS_PER_DAY
+    batch_size = max(1, min(3, round(venues_per_hour)))  # Between 1 and 3 venues per batch
+    
+    return {
+        'batch_size': batch_size,
+        'request_delay': SAFE_DELAY,
+        'batch_delay': 60  # 1 minute between batches
+    }
 
+def main():
+    """Main function that orchestrates the crawling, parsing, and storing of concert data."""
+    session = Session()
+    
     # List of venue websites to crawl
     venues = [
         {'name': 'Mansions', 'url': 'https://ra.co/clubs/197275', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
@@ -309,38 +332,35 @@ def main():
         {'name': 'The Appel Room', 'url': 'https://www.lincolncenter.org/venue/the-appel-room/v/calendar', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'Symphony Space', 'url': 'https://www.symphonyspace.org/events', 'default_times': ['7:00 PM', '9:00 PM']},
         {'name': 'Le Poisson Rouge', 'url': 'https://www.lpr.com/', 'default_times': ['7:00 PM', '9:30 PM']},
-        ]
-
-    # Process only 2 venues concurrently to stay under rate limit
-    max_workers = 2
+    ]
     
-    print(f"Starting parallel processing with {max_workers} workers")
+    # Calculate scraping parameters
+    params = calculate_scrape_params(len(venues))
+    print(f"\nScraping parameters:")
+    print(f"Batch size: {params['batch_size']}")
+    print(f"Request delay: {params['request_delay']:.1f} seconds")
+    print(f"Batch delay: {params['batch_delay']} seconds")
     
-    # Process venues in very small batches
-    batch_size = 2
-    for i in range(0, len(venues), batch_size):
-        batch = venues[i:i+batch_size]
-        print(f"\nProcessing batch {i//batch_size + 1} of {(len(venues) + batch_size - 1)//batch_size}")
+    # Process venues in small batches
+    for i in range(0, len(venues), params['batch_size']):
+        batch = venues[i:i+params['batch_size']]
+        print(f"\nProcessing batch {i//params['batch_size'] + 1} of {(len(venues) + params['batch_size'] - 1)//params['batch_size']}")
         
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_venue = {
-                executor.submit(process_venue, venue, session): venue['name'] 
-                for venue in batch
-            }
-            
-            for future in as_completed(future_to_venue):
-                venue_name = future_to_venue[future]
+        with ThreadPoolExecutor(max_workers=1) as executor:  # Process one at a time
+            for venue in batch:
+                future = executor.submit(process_venue, venue, session)
                 try:
                     future.result()
-                    print(f"Completed processing {venue_name}")
+                    print(f"Completed processing {venue['name']}")
+                    # Add delay between requests
+                    sleep(params['request_delay'])
                 except Exception as e:
-                    print(f"Error processing {venue_name}: {e}")
+                    print(f"Error processing {venue['name']}: {e}")
         
-        # Add longer delay between batches
-        if i + batch_size < len(venues):
-            delay = random.uniform(20, 30)
-            print(f"\nWaiting {delay:.1f} seconds before next batch...")
-            sleep(delay)
+        # Add delay between batches
+        if i + params['batch_size'] < len(venues):
+            print(f"\nWaiting {params['batch_delay']} seconds before next batch...")
+            sleep(params['batch_delay'])
 
     session.close()
     print("\nAll venues processed")
