@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from threading import Thread
 import atexit
 from sqlalchemy.orm import joinedload
+import spotipy
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -33,7 +34,9 @@ print(f"SPOTIFY_REDIRECT_URI: {os.getenv('SPOTIFY_REDIRECT_URI')}")
 def index():
     db = SessionLocal()
     try:
-        today = datetime.now().date()
+        # Use datetime.now() instead of .date() to include today's concerts
+        now = datetime.now()
+        today = now.date()
         thirty_days = today + timedelta(days=30)
         
         # Query concerts with all needed relationships eagerly loaded
@@ -46,26 +49,74 @@ def index():
             )
             .filter(
                 Concert.date >= today,
-                Concert.date <= thirty_days
+                Concert.date <= thirty_days,
+                # Only show future concerts if it's today
+                (Concert.date > today) | 
+                ((Concert.date == today) & 
+                 (Concert.times.any(ConcertTime.time >= now.time())))
             )
             .order_by(Concert.date)
             .all()
         )
         
-        # Group concerts by date - create a copy of data while session is open
+        # Get user's Spotify data if logged in
+        spotify_artists = set()
+        if 'user_id' in session:
+            user = db.query(User).filter_by(id=session['user_id']).first()
+            if user and user.spotify_token:
+                try:
+                    sp = spotipy.Spotify(auth=user.spotify_token['access_token'])
+                    
+                    # Get user's saved tracks
+                    saved_tracks = sp.current_user_saved_tracks(limit=50)
+                    for item in saved_tracks['items']:
+                        for artist in item['track']['artists']:
+                            spotify_artists.add(artist['name'].lower())
+                    
+                    # Get user's top artists
+                    top_artists = sp.current_user_top_artists(limit=50)
+                    for artist in top_artists['items']:
+                        spotify_artists.add(artist['name'].lower())
+                    
+                    # Get user's playlists and their tracks
+                    playlists = sp.current_user_playlists(limit=50)
+                    for playlist in playlists['items']:
+                        if playlist['owner']['id'] == sp.me()['id']:  # Only user's playlists
+                            tracks = sp.playlist_tracks(playlist['id'], limit=100)
+                            for item in tracks['items']:
+                                if item['track']:
+                                    for artist in item['track']['artists']:
+                                        spotify_artists.add(artist['name'].lower())
+                except Exception as e:
+                    print(f"Error fetching Spotify data: {e}")
+        
+        # Group concerts by date and sort by Spotify relevance
         concerts_by_date = {}
         for concert in concerts:
             if concert.date not in concerts_by_date:
                 concerts_by_date[concert.date] = []
-            # Create a dict with all the data we need
+            
+            # Calculate Spotify relevance score
+            spotify_score = 0
+            if spotify_artists:
+                for artist in concert.artists:
+                    if artist.name.lower() in spotify_artists:
+                        spotify_score = 1
+                        break
+            
             concert_data = {
                 'venue_name': concert.venue.name,
                 'artists': [{'name': artist.name} for artist in concert.artists],
                 'times': [{'time': time.time} for time in concert.times],
                 'ticket_link': concert.ticket_link,
-                'special_notes': concert.special_notes
+                'special_notes': concert.special_notes,
+                'spotify_score': spotify_score
             }
             concerts_by_date[concert.date].append(concert_data)
+            
+            # Sort concerts within each date by Spotify relevance
+            for date in concerts_by_date:
+                concerts_by_date[date].sort(key=lambda x: x['spotify_score'], reverse=True)
         
         return render_template('index.html', 
                              concerts_by_date=concerts_by_date,

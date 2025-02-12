@@ -9,13 +9,18 @@
         <h2>{{ date.strftime('%A, %B %d, %Y') }}</h2>
         
         {% for concert in concerts %}
-        <div class="concert-card">
+        <div class="concert-card {% if concert.spotify_score > 0 %}spotify-match{% endif %}">
             <div class="venue">{{ concert.venue_name }}</div>
             <div class="artists">
                 {% for artist in concert.artists %}
                 <span class="artist">{{ artist.name }}</span>
                 {% endfor %}
             </div>
+            {% if concert.spotify_score > 0 %}
+                <div class="spotify-match-indicator">
+                    <i class="fa fa-spotify"></i> In Your Library
+                </div>
+            {% endif %}
             <div class="times">
                 {% for time in concert.times %}
                 <span class="time">{{ time.time.strftime('%-I:%M %p') }}</span>
