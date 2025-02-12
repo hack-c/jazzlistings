@@ -362,5 +362,5 @@ if __name__ == '__main__':
         scraper_thread = start_scraper()
         atexit.register(lambda: scraper_thread.join(timeout=1.0))
     
-    # Run the server
-    app.run(debug=True, host='0.0.0.0', ssl_context='adhoc')
+    # Run the server without SSL (Replit provides HTTPS)
+    app.run(debug=True, host='0.0.0.0')
