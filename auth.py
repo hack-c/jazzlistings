@@ -27,15 +27,21 @@ def create_spotify_oauth():
 @auth.route('/login')
 def login():
     """Redirect to Spotify login"""
-    sp_oauth = create_spotify_oauth()
-    auth_url = sp_oauth.get_authorize_url()
-    print(f"Spotify Auth URL: {auth_url}")  # Debug print
-    print(f"Redirect URI: {SPOTIFY_REDIRECT_URI}")  # Debug print
-    return redirect(auth_url)
+    try:
+        sp_oauth = create_spotify_oauth()
+        auth_url = sp_oauth.get_authorize_url()
+        print(f"Spotify Auth URL: {auth_url}")  # Debug print
+        print(f"Redirect URI: {SPOTIFY_REDIRECT_URI}")  # Debug print
+        return redirect(auth_url)
+    except Exception as e:
+        print(f"Error in login route: {e}")
+        return str(e), 500
 
 @auth.route('/callback')
 def callback():
     """Handle Spotify OAuth callback"""
+    print(f"Callback received with args: {request.args}")
+    print(f"Full request URL: {request.url}")
     print("Callback received!")  # Debug print
     print(f"Request args: {request.args}")  # Debug print
     sp_oauth = create_spotify_oauth()
