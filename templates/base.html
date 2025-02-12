@@ -5,22 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Jazz Listings</title>
     
-    <!-- Font definitions -->
     <style>
+        /* Font definitions */
         @font-face {
-            font-family: 'Inter';
+            font-family: 'Univers';
+            src: url('https://ecmrecords.com/wp-content/themes/ecm-records/fonts/UniversLTStd-LightCn.woff2') format('woff2');
+            font-weight: 300;
             font-style: normal;
-            font-weight: 300 900;
-            font-display: fallback;
-            src: url('https://ecmrecords.com/wp-content/plugins/woocommerce/assets/fonts/Inter-VariableFont_slnt,wght.woff2') format('woff2');
         }
 
         @font-face {
-            font-family: 'Cardo';
-            font-style: normal;
+            font-family: 'Univers';
+            src: url('https://ecmrecords.com/wp-content/themes/ecm-records/fonts/UniversLTStd-Cn.woff2') format('woff2');
             font-weight: 400;
-            font-display: fallback;
-            src: url('https://ecmrecords.com/wp-content/plugins/woocommerce/assets/fonts/cardo_normal_400.woff2') format('woff2');
+            font-style: normal;
         }
 
         :root {
@@ -40,45 +38,131 @@
 
         /* Base styles */
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Univers', sans-serif;
             background-color: var(--wp--preset--color--black);
             color: var(--wp--preset--color--white);
             margin: 0;
             padding: 20px;
+            font-weight: 300;
+            letter-spacing: 0.02em;
         }
 
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Cardo', serif;
+            font-family: 'Univers', sans-serif;
+            font-weight: 400;
+            color: var(--wp--preset--color--white);
         }
 
         .content {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Concert Cards */
+        .concert-card {
+            border: 1px solid var(--wp--preset--color--cyan-bluish-gray);
+            padding: calc(0.667em + 2px) calc(1.333em + 2px);
+            margin-bottom: 15px;
+            border-radius: 0;
+            background-color: rgba(50, 55, 60, 0.8);
+            transition: all 0.3s ease;
+        }
+
+        .concert-card:hover {
+            border-color: var(--wp--preset--color--white);
+        }
+
+        .venue {
+            font-weight: 400;
+            font-size: 1.2em;
+            color: var(--wp--preset--color--white);
+            margin-bottom: 10px;
+            letter-spacing: 0.04em;
+        }
+
+        .artists {
+            margin: 10px 0;
+            color: var(--wp--preset--color--white);
+            font-size: 1.125em;
+        }
+
+        .time {
+            color: var(--wp--preset--color--cyan-bluish-gray);
+            margin-right: 10px;
+            font-size: 13px;
+        }
+
+        .date-section h2 {
+            color: var(--wp--preset--color--white);
+            border-bottom: 1px solid var(--wp--preset--color--cyan-bluish-gray);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 36px;
+            font-weight: 300;
+        }
+
+        .tickets a {
+            color: var(--wp--preset--color--white);
+            background-color: transparent;
+            border: 1px solid var(--wp--preset--color--white);
+            border-radius: 0;
+            text-decoration: none;
+            padding: 8px 16px;
+            font-size: 0.9em;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .tickets a:hover {
+            background-color: var(--wp--preset--color--white);
+            color: var(--wp--preset--color--black);
+        }
+
+        .notes {
+            margin-top: 10px;
+            font-style: normal;
+            color: var(--wp--preset--color--cyan-bluish-gray);
+            font-size: 13px;
         }
 
         /* Navigation */
         nav {
-            margin-bottom: 20px;
-            padding: calc(0.667em + 2px) calc(1.333em + 2px);
-            background-color: #32373c;
-            border-radius: 9999px;
+            margin-bottom: 40px;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--wp--preset--color--cyan-bluish-gray);
         }
 
-        /* Button styles */
         .wp-block-button__link {
             color: var(--wp--preset--color--white);
-            background-color: #32373c;
-            border-radius: 9999px;
-            padding: calc(0.667em + 2px) calc(1.333em + 2px);
-            font-size: 1.125em;
+            background-color: transparent;
+            border: 1px solid var(--wp--preset--color--white);
+            border-radius: 0;
+            padding: 8px 16px;
+            font-size: 0.9em;
             text-decoration: none;
+            transition: all 0.3s ease;
         }
 
-        /* Font sizes */
-        .has-small-font-size { font-size: 13px !important; }
-        .has-medium-font-size { font-size: 20px !important; }
-        .has-large-font-size { font-size: 36px !important; }
-        .has-x-large-font-size { font-size: 42px !important; }
+        .wp-block-button__link:hover {
+            background-color: var(--wp--preset--color--white);
+            color: var(--wp--preset--color--black);
+        }
+
+        /* Spotify Integration */
+        .spotify-match {
+            border-left: 2px solid var(--wp--preset--color--vivid-green-cyan);
+            padding-left: 15px;
+        }
+        
+        .spotify-match-indicator {
+            color: var(--wp--preset--color--vivid-green-cyan);
+            font-size: 13px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
