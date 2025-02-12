@@ -238,6 +238,18 @@ def main():
 
     # List of venue websites to crawl
     venues = [
+        {'name': 'Mansions', 'url': 'https://ra.co/clubs/197275', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': 'Knockdown Center', 'url': 'https://knockdown.center/upcoming/', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': 'Jupiter Disco', 'url': 'https://ra.co/clubs/128789', 'default_times': ['Daily 10:00 PM - 4:00 AM']},
+        {'name': 'Bossa Nova Civic Club', 'url': 'https://ra.co/clubs/71292', 'default_times': ['Daily 10:00 PM - 4:00 AM']},
+        {'name': 'House of Yes', 'url': 'https://www.houseofyes.org/calendar', 'default_times': ['Thursday 10:00 PM - 4:00 AM', 'Friday 10:00 PM - 4:00 AM']},
+        {'name': 'Elsewhere', 'url': 'https://www.elsewherebrooklyn.com/calendar', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': 'Good Room', 'url': 'https://donyc.com/venues/good-room', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': 'Nowadays', 'url': 'https://nowadays.nyc/all-events', 'default_times': ['Friday 10:00 PM - 6:00 AM', 'Sunday 3:00 PM - 9:00 PM']},
+        {'name': 'Public Records', 'url': 'https://publicrecords.nyc/sound-room/', 'default_times': ['Thursday 7:00 PM - 12:00 AM', 'Saturday 11:00 PM - 4:00 AM']},
+        {'name': 'The Sultan Room', 'url': 'https://www.thesultanroom.com/calendar', 'default_times': ['Friday 8:00 PM - 1:00 AM', 'Saturday 8:00 PM - 1:00 AM']},
+        {'name': 'Black Flamingo', 'url': 'https://www.blackflamingonyc.com/events', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': '3 Dollar Bill', 'url': 'https://www.3dollarbillbk.com/rsvp', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
         {'name': 'Village Vanguard', 'url': 'https://villagevanguard.com/', 'default_times': ['8:00 PM', '10:00 PM']},
         {'name': 'Smalls Jazz Club', 'url': 'https://smallslive.com/', 'default_times': ['7:30 PM', '9:00 PM', '10:30 PM']},
         {'name': 'Mezzrow Jazz Club', 'url': 'https://mezzrow.com/', 'default_times': ['7:30 PM', '9:00 PM', '10:30 PM']},
@@ -284,19 +296,7 @@ def main():
         {'name': 'The Appel Room', 'url': 'https://www.lincolncenter.org/venue/the-appel-room/v/calendar', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'Symphony Space', 'url': 'https://www.symphonyspace.org/events', 'default_times': ['7:00 PM', '9:00 PM']},
         {'name': 'Le Poisson Rouge', 'url': 'https://www.lpr.com/', 'default_times': ['7:00 PM', '9:30 PM']},
-        {'name': 'Mansions', 'url': 'https://ra.co/clubs/197275', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-        {'name': 'Knockdown Center', 'url': 'https://knockdown.center/upcoming/', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-        {'name': 'Jupiter Disco', 'url': 'https://ra.co/clubs/128789', 'default_times': ['Daily 10:00 PM - 4:00 AM']},
-        {'name': 'Bossa Nova Civic Club', 'url': 'https://ra.co/clubs/71292', 'default_times': ['Daily 10:00 PM - 4:00 AM']},
-        {'name': 'House of Yes', 'url': 'https://www.houseofyes.org/calendar', 'default_times': ['Thursday 10:00 PM - 4:00 AM', 'Friday 10:00 PM - 4:00 AM']},
-        {'name': 'Elsewhere', 'url': 'https://www.elsewherebrooklyn.com/calendar', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-        {'name': 'Good Room', 'url': 'https://donyc.com/venues/good-room', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-        {'name': 'Nowadays', 'url': 'https://nowadays.nyc/all-events', 'default_times': ['Friday 10:00 PM - 6:00 AM', 'Sunday 3:00 PM - 9:00 PM']},
-        {'name': 'Public Records', 'url': 'https://publicrecords.nyc/sound-room/', 'default_times': ['Thursday 7:00 PM - 12:00 AM', 'Saturday 11:00 PM - 4:00 AM']},
-        {'name': 'The Sultan Room', 'url': 'https://www.thesultanroom.com/calendar', 'default_times': ['Friday 8:00 PM - 1:00 AM', 'Saturday 8:00 PM - 1:00 AM']},
-        {'name': 'Black Flamingo', 'url': 'https://www.blackflamingonyc.com/events', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-        {'name': '3 Dollar Bill', 'url': 'https://www.3dollarbillbk.com/rsvp', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-    ]
+        ]
 
     # Process only 2 venues concurrently to stay under rate limit
     max_workers = 2
