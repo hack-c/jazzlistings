@@ -25,9 +25,9 @@ app.register_blueprint(auth)
 load_dotenv()
 
 print("Environment Variables:")
-print(f"SPOTIFY_CLIENT_ID: {'set' if SPOTIFY_CLIENT_ID else 'not set'}")
-print(f"SPOTIFY_CLIENT_SECRET: {'set' if SPOTIFY_CLIENT_SECRET else 'not set'}")
-print(f"SPOTIFY_REDIRECT_URI: {SPOTIFY_REDIRECT_URI}")
+print(f"SPOTIFY_CLIENT_ID: {'set' if os.getenv('SPOTIFY_CLIENT_ID') else 'not set'}")
+print(f"SPOTIFY_CLIENT_SECRET: {'set' if os.getenv('SPOTIFY_CLIENT_SECRET') else 'not set'}")
+print(f"SPOTIFY_REDIRECT_URI: {os.getenv('SPOTIFY_REDIRECT_URI')}")
 
 @app.route('/')
 def index():
