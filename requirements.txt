@@ -3,3 +3,11 @@ openai
 SQLAlchemy
 python-dotenv
 fuzzywuzzy
+firecrawl
+flask
+pytz
+requests
+schedule
+spotipy
+tenacity
+werkzeug
