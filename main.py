@@ -19,6 +19,8 @@ import atexit
 from sqlalchemy.orm import joinedload
 import spotipy
 from fuzzywuzzy import fuzz
+import schedule
+import time
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -433,8 +435,29 @@ def store_concert_data(session, concert_data_list, venue_info):
 
 def start_scraper():
     """Run the scraper in a background thread"""
-    print("Starting scraper in background...")
-    scraper_thread = Thread(target=main, daemon=True)
+    def scheduled_job():
+        print(f"\nRunning scheduled scraper at {datetime.now()}")
+        try:
+            crawler = Crawler()
+            crawler.run()
+            print("Scheduled scraper completed successfully")
+        except Exception as e:
+            print(f"Error in scheduled scraper: {e}")
+
+    def run_scheduler():
+        # Schedule the job to run daily at 4 AM
+        schedule.every().day.at("04:00").do(scheduled_job)
+        
+        # Run the scraper immediately on startup
+        print("Running initial scraper...")
+        scheduled_job()
+        
+        while True:
+            schedule.run_pending()
+            time.sleep(60)  # Check every minute
+
+    print("Starting scraper scheduler...")
+    scraper_thread = Thread(target=run_scheduler, daemon=True)
     scraper_thread.start()
     return scraper_thread
 
