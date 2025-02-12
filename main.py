@@ -133,22 +133,35 @@ def index():
                         print(f"Found exact match: {matched_artist}")
                         break
                     
-                    # Fuzzy match
+                    # Fuzzy match - increased threshold to 90
                     for spotify_artist in spotify_artists:
+                        spotify_artist = normalize_artist_name(spotify_artist)
                         ratio = fuzz.ratio(artist_name, spotify_artist)
-                        if ratio > 85:  # You can adjust this threshold
-                            spotify_score = 1
-                            matched_artist = artist.name
-                            print(f"Found fuzzy match: {matched_artist} ({ratio}% match with {spotify_artist})")
-                            break
+                        
+                        # Only consider longer names for fuzzy matching
+                        if len(artist_name) > 4 and len(spotify_artist) > 4:
+                            if ratio > 90:  # Increased threshold
+                                spotify_score = 1
+                                matched_artist = artist.name
+                                print(f"Found fuzzy match: {matched_artist} ({ratio}% match with {spotify_artist})")
+                                break
                     
-                    # Substring match
-                    if any(artist_name in spotify_artist or spotify_artist in artist_name 
-                           for spotify_artist in spotify_artists):
-                        spotify_score = 1
-                        matched_artist = artist.name
-                        print(f"Found substring match: {matched_artist}")
-                        break
+                    # More careful substring matching
+                    if spotify_score == 0:  # Only try if no fuzzy match found
+                        for spotify_artist in spotify_artists:
+                            spotify_artist = normalize_artist_name(spotify_artist)
+                            # Only consider substantial substrings
+                            if len(artist_name) > 4 and len(spotify_artist) > 4:
+                                if artist_name in spotify_artist:
+                                    spotify_score = 1
+                                    matched_artist = artist.name
+                                    print(f"Found artist as substring in: {matched_artist} in {spotify_artist}")
+                                    break
+                                elif spotify_artist in artist_name:
+                                    spotify_score = 1
+                                    matched_artist = artist.name
+                                    print(f"Found Spotify artist as substring: {spotify_artist} in {matched_artist}")
+                                    break
                     
                     if spotify_score > 0:
                         break
@@ -471,7 +484,12 @@ def initialize_app():
 
 def normalize_artist_name(name):
     """Normalize artist name for better matching"""
-    return name.lower().strip()
+    # Remove common words that might cause false matches
+    name = name.lower().strip()
+    skip_words = ['trio', 'quartet', 'quintet', 'band', 'orchestra', 'ensemble', 'presents', 'featuring']
+    for word in skip_words:
+        name = name.replace(f' {word}', '')
+    return name
 
 if __name__ == '__main__':
     import sys
