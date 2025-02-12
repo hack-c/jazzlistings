@@ -473,8 +473,8 @@ def start_scraper():
     def scheduled_job():
         print(f"\nRunning scheduled scraper at {datetime.now()}")
         try:
-            crawler = Crawler()
-            crawler.crawl()
+            # Call main() instead of creating a Crawler instance
+            main()
             print("Scheduled scraper completed successfully")
         except Exception as e:
             print(f"Error in scheduled scraper: {e}")
