@@ -4,169 +4,160 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jazz Listings</title>
-    <!-- Add Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cardo:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <style>
+        /* Font faces */
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 300 900;
+            font-display: fallback;
+            src: url('https://ecmrecords.com/wp-content/plugins/woocommerce/assets/fonts/Inter-VariableFont_slnt,wght.woff2') format('woff2');
+        }
+
+        @font-face {
+            font-family: 'Cardo';
+            font-style: normal;
+            font-weight: 400;
+            font-display: fallback;
+            src: url('https://ecmrecords.com/wp-content/plugins/woocommerce/assets/fonts/cardo_normal_400.woff2') format('woff2');
+        }
+
+        /* Color variables */
+        :root {
+            --wp--preset--color--black: #000000;
+            --wp--preset--color--cyan-bluish-gray: #abb8c3;
+            --wp--preset--color--white: #ffffff;
+            --wp--preset--color--pale-pink: #f78da7;
+            --wp--preset--color--vivid-red: #cf2e2e;
+            --wp--preset--color--luminous-vivid-orange: #ff6900;
+            --wp--preset--color--luminous-vivid-amber: #fcb900;
+            --wp--preset--color--light-green-cyan: #7bdcb5;
+            --wp--preset--color--vivid-green-cyan: #00d084;
+            --wp--preset--color--pale-cyan-blue: #8ed1fc;
+            --wp--preset--color--vivid-cyan-blue: #0693e3;
+            --wp--preset--color--vivid-purple: #9b51e0;
+        }
+
         /* Base styles */
         body {
             font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #000000;
-            color: #ffffff;
+            background-color: var(--wp--preset--color--black);
+            color: var(--wp--preset--color--white);
         }
 
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Cardo', serif;
-            color: #ffffff;
+            color: var(--wp--preset--color--white);
         }
 
         nav {
             margin-bottom: 20px;
-            padding: 15px;
-            background: linear-gradient(135deg, #32373c 0%, #0693e3 100%);
-            color: white;
-            border-radius: 8px;
-        }
-
-        nav a {
-            color: white;
-            text-decoration: none;
-            margin-right: 15px;
-            font-weight: 500;
-        }
-
-        nav a:hover {
-            color: #7bdcb5;
+            padding: calc(0.667em + 2px) calc(1.333em + 2px);
+            background-color: #32373c;
+            border-radius: 9999px;
+            color: var(--wp--preset--color--white);
         }
 
         .content {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
-            background-color: rgba(50, 55, 60, 0.8);
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
         }
 
         .concert-card {
-            border: 1px solid #32373c;
-            padding: 20px;
+            border: 1px solid var(--wp--preset--color--cyan-bluish-gray);
+            padding: calc(0.667em + 2px) calc(1.333em + 2px);
             margin-bottom: 15px;
-            border-radius: 8px;
-            background: linear-gradient(160deg, rgba(50, 55, 60, 0.9) 0%, rgba(0, 0, 0, 0.95) 100%);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            transition: transform 0.2s ease;
-        }
-
-        .concert-card:hover {
-            transform: translateY(-2px);
+            border-radius: 9px;
+            background-color: rgba(50, 55, 60, 0.8);
         }
 
         .venue {
             font-family: 'Cardo', serif;
             font-weight: bold;
-            font-size: 1.2em;
-            color: #7bdcb5;
+            font-size: 1.125em;
+            color: var(--wp--preset--color--light-green-cyan);
             margin-bottom: 10px;
         }
 
         .artists {
             margin: 10px 0;
-            color: #ffffff;
-            font-size: 1.1em;
+            color: var(--wp--preset--color--white);
+            font-size: 1.125em;
         }
 
         .time {
-            color: #abb8c3;
+            color: var(--wp--preset--color--cyan-bluish-gray);
             margin-right: 10px;
-            font-size: 0.9em;
-        }
-
-        .date-section {
-            margin-bottom: 30px;
+            font-size: 13px;
         }
 
         .date-section h2 {
-            color: #00d084;
-            border-bottom: 2px solid #32373c;
+            color: var(--wp--preset--color--vivid-green-cyan);
+            border-bottom: 2px solid var(--wp--preset--color--cyan-bluish-gray);
             padding-bottom: 10px;
             margin-bottom: 20px;
+            font-size: 36px;
         }
 
         .tickets a {
-            display: inline-block;
-            padding: 8px 20px;
-            background: linear-gradient(135deg, #0693e3 0%, #9b51e0 100%);
-            color: white;
+            color: var(--wp--preset--color--white);
+            background-color: #32373c;
+            border-radius: 9999px;
+            box-shadow: none;
             text-decoration: none;
-            border-radius: 20px;
-            margin-top: 10px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-
-        .tickets a:hover {
-            background: linear-gradient(135deg, #9b51e0 0%, #0693e3 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            padding: calc(0.667em + 2px) calc(1.333em + 2px);
+            font-size: 1.125em;
+            display: inline-block;
         }
 
         .notes {
             margin-top: 10px;
             font-style: italic;
-            color: #abb8c3;
+            color: var(--wp--preset--color--cyan-bluish-gray);
+            font-size: 13px;
         }
 
         .spotify-login {
-            background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%);
-            color: white;
-            padding: 10px 24px;
-            border-radius: 24px;
+            color: var(--wp--preset--color--white);
+            background-color: #32373c;
+            border-radius: 9999px;
             text-decoration: none;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            border: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .spotify-login:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            padding: calc(0.667em + 2px) calc(1.333em + 2px);
+            font-size: 1.125em;
         }
 
         .spotify-match {
-            border-left: 4px solid #1DB954;
-            background: linear-gradient(90deg, rgba(29, 185, 84, 0.1) 0%, rgba(0, 0, 0, 0) 100%);
-            position: relative;
+            border-left: 4px solid var(--wp--preset--color--vivid-green-cyan);
             padding-left: 24px;
         }
         
         .spotify-match-indicator {
-            color: #1DB954;
-            font-size: 0.9em;
+            color: var(--wp--preset--color--vivid-green-cyan);
+            font-size: 13px;
             margin-top: 8px;
             display: flex;
             align-items: center;
             gap: 6px;
-            font-weight: 500;
         }
-        
-        .fa-spotify {
-            color: #1DB954;
-            font-size: 1.1em;
-        }
+
+        /* Font size utilities */
+        .has-small-font-size { font-size: 13px !important; }
+        .has-medium-font-size { font-size: 20px !important; }
+        .has-large-font-size { font-size: 36px !important; }
+        .has-x-large-font-size { font-size: 42px !important; }
     </style>
-    <!-- Add Font Awesome for the Spotify icon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
     <nav>
         {% if user %}
             <span>Welcome, {{ user.email }}!</span>
-            <a href="{{ url_for('auth.logout') }}">Logout</a>
+            <a href="{{ url_for('auth.logout') }}" class="wp-block-button__link">Logout</a>
         {% else %}
-            <a href="{{ url_for('auth.login') }}" class="spotify-login">
+            <a href="{{ url_for('auth.login') }}" class="wp-block-button__link">
                 Login with Spotify
             </a>
         {% endif %}
