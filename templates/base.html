@@ -4,102 +4,142 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jazz Listings</title>
+    <!-- Add Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cardo:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <style>
-        /* Add some basic styling */
+        /* Base styles */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #f8f9fa;
-            color: #333;
+            background-color: #000000;
+            color: #ffffff;
         }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Cardo', serif;
+            color: #ffffff;
+        }
+
         nav {
             margin-bottom: 20px;
             padding: 15px;
-            background-color: #343a40;
+            background: linear-gradient(135deg, #32373c 0%, #0693e3 100%);
             color: white;
+            border-radius: 8px;
         }
+
         nav a {
             color: white;
             text-decoration: none;
             margin-right: 15px;
+            font-weight: 500;
         }
+
         nav a:hover {
-            color: #17a2b8;
+            color: #7bdcb5;
         }
+
         .content {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
-            background-color: white;
+            background-color: rgba(50, 55, 60, 0.8);
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
         }
+
         .concert-card {
-            border: 1px solid #ddd;
+            border: 1px solid #32373c;
             padding: 20px;
             margin-bottom: 15px;
-            border-radius: 5px;
-            background-color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            background: linear-gradient(160deg, rgba(50, 55, 60, 0.9) 0%, rgba(0, 0, 0, 0.95) 100%);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease;
         }
+
+        .concert-card:hover {
+            transform: translateY(-2px);
+        }
+
         .venue {
+            font-family: 'Cardo', serif;
             font-weight: bold;
             font-size: 1.2em;
-            color: #343a40;
+            color: #7bdcb5;
             margin-bottom: 10px;
         }
+
         .artists {
             margin: 10px 0;
-            color: #495057;
+            color: #ffffff;
+            font-size: 1.1em;
         }
+
         .time {
-            color: #6c757d;
+            color: #abb8c3;
             margin-right: 10px;
             font-size: 0.9em;
         }
+
         .date-section {
             margin-bottom: 30px;
         }
+
         .date-section h2 {
-            color: #17a2b8;
-            border-bottom: 2px solid #dee2e6;
+            color: #00d084;
+            border-bottom: 2px solid #32373c;
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
+
         .tickets a {
             display: inline-block;
-            padding: 5px 15px;
-            background-color: #28a745;
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #0693e3 0%, #9b51e0 100%);
             color: white;
             text-decoration: none;
-            border-radius: 3px;
+            border-radius: 20px;
             margin-top: 10px;
+            font-weight: 500;
+            transition: all 0.2s ease;
         }
+
         .tickets a:hover {
-            background-color: #218838;
+            background: linear-gradient(135deg, #9b51e0 0%, #0693e3 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
+
         .notes {
             margin-top: 10px;
             font-style: italic;
-            color: #6c757d;
+            color: #abb8c3;
         }
+
         .spotify-login {
-            background-color: #1DB954;
+            background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%);
             color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
+            padding: 10px 24px;
+            border-radius: 24px;
             text-decoration: none;
-            font-weight: bold;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
+
         .spotify-login:hover {
-            background-color: #1ed760;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
+
         .spotify-match {
-            border-left: 4px solid #1DB954;  /* Spotify green */
-            background-color: #f8fff9;
+            border-left: 4px solid #1DB954;
+            background: linear-gradient(90deg, rgba(29, 185, 84, 0.1) 0%, rgba(0, 0, 0, 0) 100%);
             position: relative;
-            padding-left: 24px;  /* More padding for the green border */
+            padding-left: 24px;
         }
         
         .spotify-match-indicator {
@@ -109,6 +149,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            font-weight: 500;
         }
         
         .fa-spotify {
