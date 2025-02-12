@@ -54,7 +54,7 @@ def parse_markdown(markdown_content):
     try:
         # Call the OpenAI API
         response = client.chat.completions.create(
-            model="gpt-4o",  # Fixed typo in model name
+            model="gpt-4o-mini",  # Fixed typo in model name
             messages=[{"role": "user", "content": prompt}],
             max_tokens=16000,
             temperature=0.2,
