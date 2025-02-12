@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from time import sleep
 import random
 from tenacity import retry, stop_after_attempt, wait_exponential
-from flask import Flask, render_template, session
+from flask import Flask, render_template, session, request, redirect
 from collections import defaultdict
 from sqlalchemy import select
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -22,6 +22,16 @@ import spotipy
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
 app.register_blueprint(auth)
+
+# Force HTTPS
+app.config['PREFERRED_URL_SCHEME'] = 'https'
+
+# Add before/after request handlers to redirect HTTP to HTTPS
+@app.before_request
+def before_request():
+    if not request.is_secure:
+        url = request.url.replace('http://', 'https://', 1)
+        return redirect(url, code=301)
 
 load_dotenv()
 
@@ -397,6 +407,11 @@ def initialize_app():
 
 if __name__ == '__main__':
     import sys
+    from werkzeug.serving import run_simple
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    
+    # Wrap the app to fix protocol headers
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
     
     # Parse command line arguments
     run_scraper = True
@@ -413,5 +428,9 @@ if __name__ == '__main__':
         scraper_thread = start_scraper()
         atexit.register(lambda: scraper_thread.join(timeout=1.0))
     
-    # Run the server without SSL (Replit provides HTTPS)
-    app.run(debug=True, host='0.0.0.0')
+    # Run with SSL
+    run_simple('0.0.0.0', 5000, app,
+               use_reloader=True,
+               use_debugger=True,
+               use_evalex=True,
+               threaded=True)
