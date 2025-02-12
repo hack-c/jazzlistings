@@ -21,6 +21,7 @@ def parse_markdown(markdown_content):
     4. For "COMING SOON!" listings, include them with their dates and artists
     5. Include any band member details in the special_notes field
     6. For recurring events (like "Every Monday Night"), create an entry with special handling
+    7. If the artist is listed as "TBA", "TBD", or "To Be Announced", skip it
 
     Markdown Content:
     {markdown_content[:640000]}
