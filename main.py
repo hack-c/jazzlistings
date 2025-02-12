@@ -21,6 +21,7 @@ import spotipy
 from fuzzywuzzy import fuzz
 import schedule
 import time
+import pytz
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -47,8 +48,9 @@ print(f"SPOTIFY_REDIRECT_URI: {os.getenv('SPOTIFY_REDIRECT_URI')}")
 def index():
     db = SessionLocal()
     try:
-        # Use datetime.now() instead of .date() to include today's concerts
-        now = datetime.now()
+        # Use Eastern timezone for date comparisons
+        eastern = pytz.timezone('America/New_York')
+        now = datetime.now(eastern)
         today = now.date()
         thirty_days = today + timedelta(days=30)
         
