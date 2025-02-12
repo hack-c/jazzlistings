@@ -18,6 +18,7 @@ from threading import Thread
 import atexit
 from sqlalchemy.orm import joinedload
 import spotipy
+from fuzzywuzzy import fuzz
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -118,12 +119,34 @@ def index():
             matched_artist = None
             if spotify_artists:
                 for artist in concert.artists:
-                    artist_name = artist.name.lower()
+                    artist_name = normalize_artist_name(artist.name)
                     print(f"Checking concert artist: {artist_name}")
+                    
+                    # Exact match
                     if artist_name in spotify_artists:
                         spotify_score = 1
                         matched_artist = artist.name
-                        print(f"Found match: {matched_artist}")
+                        print(f"Found exact match: {matched_artist}")
+                        break
+                    
+                    # Fuzzy match
+                    for spotify_artist in spotify_artists:
+                        ratio = fuzz.ratio(artist_name, spotify_artist)
+                        if ratio > 85:  # You can adjust this threshold
+                            spotify_score = 1
+                            matched_artist = artist.name
+                            print(f"Found fuzzy match: {matched_artist} ({ratio}% match with {spotify_artist})")
+                            break
+                    
+                    # Substring match
+                    if any(artist_name in spotify_artist or spotify_artist in artist_name 
+                           for spotify_artist in spotify_artists):
+                        spotify_score = 1
+                        matched_artist = artist.name
+                        print(f"Found substring match: {matched_artist}")
+                        break
+                    
+                    if spotify_score > 0:
                         break
             
             concert_data = {
@@ -420,6 +443,10 @@ def initialize_app():
     init_db()
     scraper_thread = start_scraper()
     atexit.register(lambda: scraper_thread.join(timeout=1.0))
+
+def normalize_artist_name(name):
+    """Normalize artist name for better matching"""
+    return name.lower().strip()
 
 if __name__ == '__main__':
     import sys
