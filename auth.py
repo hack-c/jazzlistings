@@ -45,6 +45,13 @@ def login():
 @auth.route('/callback')
 def callback():
     """Handle Spotify OAuth callback"""
+    print("\nCallback Debug Info:")
+    print(f"Request URL: {request.url}")
+    print(f"Request Base URL: {request.base_url}")
+    print(f"Request Host: {request.host}")
+    print(f"Configured Redirect URI: {SPOTIFY_REDIRECT_URI}")
+    print(f"Request Args: {request.args}")
+    
     print(f"Callback received with args: {request.args}")
     print(f"Full request URL: {request.url}")
     print("Callback received!")  # Debug print
