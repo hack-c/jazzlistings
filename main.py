@@ -498,6 +498,12 @@ def start_scraper():
 def initialize_app():
     """Initialize the application"""
     init_db()
+    
+    # Clean placeholder artists on startup
+    print("\nCleaning placeholder artists from database...")
+    clean_placeholder_artists()
+    
+    # Start the scraper thread
     scraper_thread = start_scraper()
     atexit.register(lambda: scraper_thread.join(timeout=1.0))
 
@@ -509,6 +515,34 @@ def normalize_artist_name(name):
     for word in skip_words:
         name = name.replace(f' {word}', '')
     return name
+
+def clean_placeholder_artists():
+    db = SessionLocal()
+    try:
+        # Find problematic artists
+        placeholder_artists = db.query(Artist).filter(
+            (Artist.name.in_(['TBA', 'Artist Name'])) |
+            (Artist.name.like('%TBA%')) |
+            (Artist.name == '') |
+            (Artist.name.is_(None))
+        ).all()
+        
+        print(f"Found {len(placeholder_artists)} placeholder artists:")
+        for artist in placeholder_artists:
+            print(f"- {artist.name}")
+            
+        # Delete the artists (this will automatically handle concert_artists relationships)
+        for artist in placeholder_artists:
+            db.delete(artist)
+            
+        db.commit()
+        print("Successfully cleaned placeholder artists from database")
+        
+    except Exception as e:
+        print(f"Error cleaning database: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 if __name__ == '__main__':
     import sys
