@@ -593,8 +593,24 @@ def preferences():
         user = db.query(User).filter_by(id=session['user_id']).first()
         venues = db.query(Venue).order_by(Venue.name).all()
         
-        # Get unique neighborhoods from venues
-        neighborhoods = sorted(set(venue.neighborhood for venue in venues if venue.neighborhood))
+        # Define known neighborhoods
+        known_neighborhoods = [
+            'Greenwich Village',
+            'Theater District',
+            'Upper West Side',
+            'Flatiron District',
+            'Bushwick',
+            'Williamsburg',
+            'Downtown Brooklyn',
+            'Midtown',
+            'Lower East Side',
+            'East Village',
+            'Chelsea'
+        ]
+        
+        # Get neighborhoods from both venues and known list
+        venue_neighborhoods = set(venue.neighborhood for venue in venues if venue.neighborhood)
+        all_neighborhoods = sorted(venue_neighborhoods.union(known_neighborhoods))
         
         # Simplified genres
         genres = ['Jazz', 'Clubs', 'Galleries', 'Museums']
@@ -602,7 +618,7 @@ def preferences():
         return render_template('preferences.html',
                              user=user,
                              venues=venues,
-                             neighborhoods=neighborhoods,
+                             neighborhoods=all_neighborhoods,
                              genres=genres)
     finally:
         db.close()
