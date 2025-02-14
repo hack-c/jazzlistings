@@ -9,7 +9,7 @@
             {% for venue in venues %}
             <label class="checkbox-container">
                 <input type="checkbox" name="venues" value="{{ venue.id }}"
-                    {% if venue.id in user.preferred_venues %}checked{% endif %}>
+                    {% if user.preferred_venues and venue.id in user.preferred_venues %}checked{% endif %}>
                 {{ venue.name }}
             </label>
             {% endfor %}
@@ -20,7 +20,7 @@
             {% for neighborhood in neighborhoods %}
             <label class="checkbox-container">
                 <input type="checkbox" name="neighborhoods" value="{{ neighborhood }}"
-                    {% if neighborhood in user.preferred_neighborhoods %}checked{% endif %}>
+                    {% if user.preferred_neighborhoods and neighborhood in user.preferred_neighborhoods %}checked{% endif %}>
                 {{ neighborhood }}
             </label>
             {% endfor %}
@@ -31,7 +31,7 @@
             {% for genre in genres %}
             <label class="checkbox-container">
                 <input type="checkbox" name="genres" value="{{ genre }}"
-                    {% if genre in user.preferred_genres %}checked{% endif %}>
+                    {% if user.preferred_genres and genre in user.preferred_genres %}checked{% endif %}>
                 {{ genre }}
             </label>
             {% endfor %}

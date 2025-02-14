@@ -58,10 +58,10 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Add preference columns
-    preferred_venues = Column(JSON, default=list)
-    preferred_genres = Column(JSON, default=list) 
-    preferred_neighborhoods = Column(JSON, default=list)
+    # Add preference columns with default empty lists
+    preferred_venues = Column(JSON, default=lambda: [], nullable=False)
+    preferred_genres = Column(JSON, default=lambda: [], nullable=False)
+    preferred_neighborhoods = Column(JSON, default=lambda: [], nullable=False)
     
     # Relationship to track favorite concerts
     favorite_concerts = relationship(
