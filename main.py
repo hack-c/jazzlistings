@@ -179,13 +179,26 @@ def process_venue(venue_info, session):
     
     # Check if venue exists and was recently scraped
     venue = session.query(Venue).filter_by(name=venue_name).first()
-    if venue and venue.last_scraped:
-        # Get current time in UTC
-        now = datetime.now(pytz.UTC)
-        # If venue was scraped in last 24 hours, skip it
-        if venue.last_scraped and (now - venue.last_scraped.replace(tzinfo=pytz.UTC)) < timedelta(hours=24):
-            print(f"Skipping {venue_name} - was scraped at {venue.last_scraped}")
-            return
+    if venue:
+        print(f"Found existing venue: {venue_name}")
+        print(f"Last scraped: {venue.last_scraped}")
+        
+        if venue.last_scraped:
+            # Get current time in UTC
+            now = datetime.now(pytz.UTC)
+            venue_last_scraped = venue.last_scraped.replace(tzinfo=pytz.UTC)
+            time_since_scrape = now - venue_last_scraped
+            
+            print(f"Time since last scrape: {time_since_scrape}")
+            
+            # If venue was scraped in last 24 hours, skip it
+            if time_since_scrape < timedelta(hours=24):
+                print(f"Skipping {venue_name} - was scraped {time_since_scrape.total_seconds()/3600:.1f} hours ago")
+                return
+            else:
+                print(f"Processing {venue_name} - last scrape was {time_since_scrape.total_seconds()/3600:.1f} hours ago")
+    else:
+        print(f"New venue: {venue_name}")
     
     print(f"Scraping {venue_name} at {venue_url}")
     
@@ -208,7 +221,9 @@ def process_venue(venue_info, session):
             # Update last_scraped timestamp
             if venue:
                 venue.last_scraped = datetime.now(pytz.UTC)
+                print(f"Updated last_scraped for {venue_name} to {venue.last_scraped}")
                 session.commit()
+                print(f"Committed last_scraped update for {venue_name}")
             
         else:
             print(f"Failed to parse concert data for {venue_name}")
