@@ -18,36 +18,47 @@ Base = declarative_base()
 def init_db():
     """Initialize the database"""
     try:
-        # Import all migration modules
-        from migrations import add_venue_fields, add_last_scraped, add_user_preferences
-        
         # Create tables if they don't exist
         Base.metadata.create_all(engine)
         
         print("Running database migrations...")
-        # Run migrations in order
+        
+        # Create a single database session for all migrations
+        db = SessionLocal()
         try:
-            add_venue_fields.upgrade()
-            print("Venue fields migration complete")
-        except Exception as e:
-            print(f"Venue fields migration warning: {e}")
+            # Add columns if they don't exist
+            from sqlalchemy import inspect
+            inspector = inspect(engine)
             
-        try:
-            add_last_scraped.upgrade()
-            print("Last scraped migration complete")
-        except Exception as e:
-            print(f"Last scraped migration warning: {e}")
+            # Venue migrations
+            existing_venue_columns = {col['name'] for col in inspector.get_columns('venues')}
+            if 'neighborhood' not in existing_venue_columns:
+                from migrations.add_venue_fields import upgrade as venue_upgrade
+                venue_upgrade()
+                print("Venue fields migration complete")
+                
+            if 'last_scraped' not in existing_venue_columns:
+                from migrations.add_last_scraped import upgrade as scrape_upgrade
+                scrape_upgrade()
+                print("Last scraped migration complete")
             
-        try:
-            add_user_preferences.upgrade()
-            print("User preferences migration complete")
+            # User migrations
+            existing_user_columns = {col['name'] for col in inspector.get_columns('users')}
+            if 'preferred_venues' not in existing_user_columns:
+                from migrations.add_user_preferences import upgrade as pref_upgrade
+                pref_upgrade()
+                print("User preferences migration complete")
+            
+            db.commit()
+            
         except Exception as e:
-            print(f"User preferences migration warning: {e}")
+            print(f"Migration error: {e}")
+            db.rollback()
+        finally:
+            db.close()
             
     except Exception as e:
-        print(f"Database initialization warning: {e}")
-        # Tables might already exist, which is fine
-        pass
+        print(f"Database initialization error: {e}")
 
 def get_db():
     """Get a new database session."""
