@@ -2,11 +2,115 @@ import openai
 from config import OPENAI_API_KEY
 import json
 from openai import OpenAI
+import re
+from datetime import datetime, timedelta
 
 openai.api_key = OPENAI_API_KEY
 client = OpenAI()
 
-def parse_markdown(markdown_content):
+def parse_markdown(markdown_content, venue_info):
+    """Parse markdown content into structured concert data."""
+    concerts = []
+    current_concert = None
+    
+    # Get default show times for this venue
+    default_times = venue_info.get('default_times', ['8:00 PM'])  # Fallback to 8 PM if not specified
+    
+    # Split content into lines for processing
+    lines = markdown_content.split('\n')
+    
+    for line in lines:
+        # Skip empty lines
+        if not line.strip():
+            continue
+            
+        # Check for date patterns
+        date_match = re.search(r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\s*(?:‑|-|–)\s*(?:(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+)?\d{1,2}', line)
+        if date_match:
+            if current_concert:
+                concerts.append(current_concert)
+            
+            date_str = date_match.group(0)
+            start_date, end_date = parse_date_range(date_str)
+            
+            current_concert = {
+                'dates': [start_date],  # We'll expand this for each date in the range
+                'artists': [],
+                'times': default_times.copy(),  # Use venue's default times
+                'ticket_link': None,
+                'price_range': None,
+                'special_notes': []
+            }
+            
+            # Create a concert entry for each date in the range
+            current_date = start_date
+            while current_date <= end_date:
+                concerts.append({
+                    'dates': [current_date],
+                    'artists': current_concert['artists'].copy(),
+                    'times': current_concert['times'],
+                    'ticket_link': current_concert['ticket_link'],
+                    'price_range': current_concert['price_range'],
+                    'special_notes': current_concert['special_notes'].copy()
+                })
+                current_date += timedelta(days=1)
+            
+            continue
+            
+        # Check for artist names (lines starting with ** or after ### that aren't dates)
+        if '**' in line or (line.startswith('###') and not re.search(r'(?:January|February|March|April|May|June|July|August|September|October|November|December)', line)):
+            artist_name = re.sub(r'[*#\s–-]', '', line).strip()
+            if artist_name and current_concert:
+                current_concert['artists'].append(artist_name)
+                
+        # Check for ticket links
+        if '[TICKETS]' in line:
+            ticket_match = re.search(r'\((.*?)\)', line)
+            if ticket_match and current_concert:
+                current_concert['ticket_link'] = ticket_match.group(1)
+                
+        # Check for special notes (lines starting with >)
+        if line.startswith('>'):
+            if current_concert:
+                current_concert['special_notes'].append(line.strip('> '))
+
+    # Add the last concert if exists
+    if current_concert:
+        concerts.append(current_concert)
+        
+    return concerts
+
+def parse_date_range(date_str):
+    """Parse a date range string into start and end dates."""
+    parts = re.split(r'\s*(?:‑|-|–)\s*', date_str)
+    
+    if len(parts) == 2:
+        # Handle case where month is only mentioned once (e.g., "February 11 - 16")
+        if not any(month in parts[1] for month in ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']):
+            month = re.findall(r'(January|February|March|April|May|June|July|August|September|October|November|December)', parts[0])[0]
+            parts[1] = f"{month} {parts[1]}"
+    
+    start_date = parse_date(parts[0].strip())
+    end_date = parse_date(parts[1].strip())
+    
+    return start_date, end_date
+
+def parse_date(date_str):
+    """Parse a date string into a date object."""
+    # Add current year if not present
+    if not re.search(r'\d{4}', date_str):
+        date_str = f"{date_str}, {datetime.now().year}"
+    
+    try:
+        return datetime.strptime(date_str, '%B %d, %Y').date()
+    except ValueError:
+        try:
+            return datetime.strptime(date_str, '%B %d %Y').date()
+        except ValueError:
+            print(f"Could not parse date: {date_str}")
+            return None
+
+def parse_markdown_old(markdown_content):
     """
     Parse markdown content to extract concert information using OpenAI GPT-4o.
     """

@@ -201,7 +201,7 @@ def process_venue(venue_info, session):
             return
         
         print(f"Parsing markdown content for {venue_name}")
-        concert_data_list = parse_markdown(markdown_content)
+        concert_data_list = parse_markdown(markdown_content, venue_info)
         if concert_data_list:
             print(f"Storing concert data for {venue_name}")
             store_concert_data(session, concert_data_list, venue_info)
@@ -275,12 +275,12 @@ def main():
         {'name': 'The Sultan Room', 'url': 'https://www.thesultanroom.com/calendar', 'default_times': ['Friday 8:00 PM - 1:00 AM', 'Saturday 8:00 PM - 1:00 AM']},
         {'name': 'Black Flamingo', 'url': 'https://www.blackflamingonyc.com/events', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
         {'name': '3 Dollar Bill', 'url': 'https://www.3dollarbillbk.com/rsvp', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-        {'name': 'Village Vanguard', 'url': 'https://villagevanguard.com/', 'default_times': ['8:00 PM', '10:00 PM']},
-        {'name': 'Smalls Jazz Club', 'url': 'https://smallslive.com/', 'default_times': ['7:30 PM', '9:00 PM', '10:30 PM']},
+        {'name': 'Village Vanguard', 'url': 'https://villagevanguard.com', 'default_times': ['8:00 PM', '10:00 PM']},
+        {'name': 'Smalls Jazz Club', 'url': 'https://www.smallslive.com', 'default_times': ['7:30 PM', '10:00 PM', '11:30 PM']},
         {'name': 'Mezzrow Jazz Club', 'url': 'https://mezzrow.com/', 'default_times': ['7:30 PM', '9:00 PM', '10:30 PM']},
         {'name': 'Dizzy\'s Club', 'url': 'https://jazz.org/dizzys-club/', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'The Jazz Gallery', 'url': 'https://jazzgallery.org/calendar/', 'default_times': ['7:30 PM', '9:30 PM']},
-        {'name': 'Blue Note', 'url': 'https://www.bluenotejazz.com/', 'default_times': ['8:00 PM', '10:30 PM']},
+        {'name': 'Blue Note', 'url': 'https://www.bluenotejazz.com/nyc', 'default_times': ['8:00 PM', '10:30 PM']},
         {'name': 'Ornithology Jazz Club', 'url': 'https://www.ornithologyjazzclub.com/events-2/', 'default_times': ['6:30 PM', '8:30 PM', '9:00 PM']},
         {'name': 'Ornithology Cafe', 'url': 'https://www.ornithologyjazzclub.com/new-page-1/', 'default_times': ['6:30 PM', '8:30 PM', '9:00 PM']},
         {'name': 'Bar LunÀtico', 'url': 'https://www.barlunatico.com/music/', 'default_times': ['9:00 PM', '10:15 PM']},
