@@ -3,6 +3,8 @@
 {% block content %}
 <div class="preferences-form">
     <h1>Your Preferences</h1>
+    <a href="{{ url_for('index') }}" class="wp-block-button__link back-button">Back to Shows</a>
+    
     <form method="POST" action="{{ url_for('save_preferences') }}">
         <div class="preference-section">
             <h2>Venues</h2>
