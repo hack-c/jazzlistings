@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="preferences-form">
+    <h1>Your Preferences</h1>
+    <form method="POST" action="{{ url_for('save_preferences') }}">
+        <div class="preference-section">
+            <h2>Venues</h2>
+            {% for venue in venues %}
+            <label class="checkbox-container">
+                <input type="checkbox" name="venues" value="{{ venue.id }}"
+                    {% if venue.id in user.preferred_venues %}checked{% endif %}>
+                {{ venue.name }}
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="preference-section">
+            <h2>Neighborhoods</h2>
+            {% for neighborhood in neighborhoods %}
+            <label class="checkbox-container">
+                <input type="checkbox" name="neighborhoods" value="{{ neighborhood }}"
+                    {% if neighborhood in user.preferred_neighborhoods %}checked{% endif %}>
+                {{ neighborhood }}
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="preference-section">
+            <h2>Genres</h2>
+            {% for genre in genres %}
+            <label class="checkbox-container">
+                <input type="checkbox" name="genres" value="{{ genre }}"
+                    {% if genre in user.preferred_genres %}checked{% endif %}>
+                {{ genre }}
+            </label>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="wp-block-button__link">Save Preferences</button>
+    </form>
+</div>
+{% endblock %} 

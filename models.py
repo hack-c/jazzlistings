@@ -45,6 +45,9 @@ class Venue(Base):
     name = Column(String, nullable=False)
     address = Column(String)
     website_url = Column(String)
+    neighborhood = Column(String)
+    genres = Column(JSON, default=list)  # Store multiple genres as a JSON array
+    last_scraped = Column(DateTime(timezone=True))  # New column
 
 class User(Base):
     __tablename__ = 'users'
@@ -54,6 +57,11 @@ class User(Base):
     spotify_token = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Add preference columns
+    preferred_venues = Column(JSON, default=list)
+    preferred_genres = Column(JSON, default=list) 
+    preferred_neighborhoods = Column(JSON, default=list)
     
     # Relationship to track favorite concerts
     favorite_concerts = relationship(

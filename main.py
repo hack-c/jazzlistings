@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from time import sleep
 import random
 from tenacity import retry, stop_after_attempt, wait_exponential
-from flask import Flask, render_template, session, request, redirect
+from flask import Flask, render_template, session, request, redirect, url_for
 from collections import defaultdict
 from sqlalchemy import select
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -54,25 +54,47 @@ def index():
         today = now.date()
         thirty_days = today + timedelta(days=30)
         
-        # Query concerts with all needed relationships eagerly loaded
-        concerts = (
+        # Get user preferences if logged in
+        user_preferences = None
+        if 'user_id' in session:
+            user = db.query(User).filter_by(id=session['user_id']).first()
+            if user:
+                user_preferences = {
+                    'venues': user.preferred_venues,
+                    'neighborhoods': user.preferred_neighborhoods,
+                    'genres': user.preferred_genres
+                }
+        
+        # Base query with joins
+        query = (
             db.query(Concert)
             .options(
                 joinedload(Concert.venue),
                 joinedload(Concert.artists),
                 joinedload(Concert.times)
             )
-            .filter(
-                Concert.date >= today,
-                Concert.date <= thirty_days,
-                # Only show future concerts if it's today
-                (Concert.date > today) | 
-                ((Concert.date == today) & 
-                 (Concert.times.any(ConcertTime.time >= now.time())))
-            )
-            .order_by(Concert.date)
-            .all()
         )
+        
+        # Apply preference filters if user is logged in and has preferences
+        if user_preferences:
+            if user_preferences['venues']:
+                query = query.filter(Concert.venue_id.in_(user_preferences['venues']))
+            if user_preferences['neighborhoods']:
+                query = query.join(Venue).filter(Venue.neighborhood.in_(user_preferences['neighborhoods']))
+            if user_preferences['genres']:
+                # Filter by venue genres
+                query = query.join(Venue).filter(Venue.genres.contains(user_preferences['genres']))
+        
+        # Apply date filters
+        query = query.filter(
+            Concert.date >= today,
+            Concert.date <= thirty_days,
+            (Concert.date > today) | 
+            ((Concert.date == today) & 
+             (Concert.times.any(ConcertTime.time >= now.time())))
+        ).order_by(Concert.date)
+        
+        concerts = query.all()
         
         # Get user's Spotify data if logged in
         spotify_artists = set()
@@ -205,6 +227,17 @@ def process_venue(venue_info, session):
     """Process a single venue with strict rate limiting"""
     venue_name = venue_info['name']
     venue_url = venue_info['url']
+    
+    # Check if venue exists and was recently scraped
+    venue = session.query(Venue).filter_by(name=venue_name).first()
+    if venue and venue.last_scraped:
+        # Get current time in UTC
+        now = datetime.now(pytz.UTC)
+        # If venue was scraped in last 24 hours, skip it
+        if (now - venue.last_scraped) < timedelta(hours=24):
+            print(f"Skipping {venue_name} - was scraped at {venue.last_scraped}")
+            return
+    
     print(f"Scraping {venue_name} at {venue_url}")
     
     # Add minimum 6 second delay between requests (10 req/min)
@@ -222,6 +255,12 @@ def process_venue(venue_info, session):
         if concert_data_list:
             print(f"Storing concert data for {venue_name}")
             store_concert_data(session, concert_data_list, venue_info)
+            
+            # Update last_scraped timestamp
+            if venue:
+                venue.last_scraped = datetime.now(pytz.UTC)
+                session.commit()
+            
         else:
             print(f"Failed to parse concert data for {venue_name}")
     except Exception as e:
@@ -541,6 +580,49 @@ def clean_placeholder_artists():
     except Exception as e:
         print(f"Error cleaning database: {e}")
         db.rollback()
+    finally:
+        db.close()
+
+@app.route('/preferences')
+def preferences():
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(id=session['user_id']).first()
+        venues = db.query(Venue).order_by(Venue.name).all()
+        
+        # Get unique neighborhoods from venues
+        neighborhoods = sorted(set(venue.neighborhood for venue in venues if venue.neighborhood))
+        
+        # Simplified genres
+        genres = ['Jazz', 'Clubs', 'Galleries', 'Museums']
+        
+        return render_template('preferences.html',
+                             user=user,
+                             venues=venues,
+                             neighborhoods=neighborhoods,
+                             genres=genres)
+    finally:
+        db.close()
+
+@app.route('/save_preferences', methods=['POST'])
+def save_preferences():
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(id=session['user_id']).first()
+        
+        # Update user preferences
+        user.preferred_venues = request.form.getlist('venues')
+        user.preferred_neighborhoods = request.form.getlist('neighborhoods')
+        user.preferred_genres = request.form.getlist('genres')
+        
+        db.commit()
+        return redirect(url_for('index'))
     finally:
         db.close()
 
