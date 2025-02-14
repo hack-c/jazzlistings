@@ -22,6 +22,7 @@ from fuzzywuzzy import fuzz
 import schedule
 from urllib.parse import urlencode, quote
 from ics import Calendar, Event
+import pytz
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -182,14 +183,14 @@ def process_venue(venue_info, session):
         # Get current time in UTC
         now = datetime.now(pytz.UTC)
         # If venue was scraped in last 24 hours, skip it
-        if (now - venue.last_scraped) < timedelta(hours=24):
+        if venue.last_scraped and (now - venue.last_scraped.replace(tzinfo=pytz.UTC)) < timedelta(hours=24):
             print(f"Skipping {venue_name} - was scraped at {venue.last_scraped}")
             return
     
     print(f"Scraping {venue_name} at {venue_url}")
     
     # Add minimum 6 second delay between requests (10 req/min)
-    sleep(random.uniform(6, 8))
+    time.sleep(random.uniform(6, 8))
     
     crawler = Crawler()
     try:
@@ -227,7 +228,7 @@ def scrape_with_retry(crawler, url, venue_name):
         if "429" in str(e):  # Rate limit error
             print(f"Rate limit hit for {venue_name}, backing off...")
             # Add longer delay on rate limit
-            sleep(random.uniform(15, 20))
+            time.sleep(random.uniform(15, 20))
         raise
 
 def calculate_scrape_params(venue_count):
@@ -339,14 +340,14 @@ def main():
                     future.result()
                     print(f"Completed processing {venue['name']}")
                     # Add delay between requests
-                    sleep(params['request_delay'])
+                    time.sleep(params['request_delay'])
                 except Exception as e:
                     print(f"Error processing {venue['name']}: {e}")
         
         # Add delay between batches
         if i + params['batch_size'] < len(venues):
             print(f"\nWaiting {params['batch_delay']} seconds before next batch...")
-            sleep(params['batch_delay'])
+            time.sleep(params['batch_delay'])
 
     session.close()
     print("\nAll venues processed")
