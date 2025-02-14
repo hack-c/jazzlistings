@@ -2,11 +2,12 @@ from database import SessionLocal, engine
 from sqlalchemy import Column, String, JSON
 from models import Venue
 from alembic import op
+import sqlalchemy as sa
 
 def upgrade():
-    # Add the new columns
-    op.add_column('venues', Column('neighborhood', String))
-    op.add_column('venues', Column('genres', JSON))
+    with op.batch_alter_table('venues') as batch_op:
+        batch_op.add_column(Column('neighborhood', String))
+        batch_op.add_column(Column('genres', JSON))
 
     # Populate with initial data
     db = SessionLocal()
@@ -91,5 +92,6 @@ def upgrade():
         db.close()
 
 def downgrade():
-    op.drop_column('venues', 'neighborhood')
-    op.drop_column('venues', 'genres') 
+    with op.batch_alter_table('venues') as batch_op:
+        batch_op.drop_column('neighborhood')
+        batch_op.drop_column('genres') 

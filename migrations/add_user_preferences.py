@@ -1,13 +1,14 @@
-from database import SessionLocal, engine
-from sqlalchemy import Column, JSON
-from models import User
 from alembic import op
+import sqlalchemy as sa
+from sqlalchemy import Column, JSON
+from database import SessionLocal, engine
+from models import User
 
 def upgrade():
-    # Add the new columns
-    op.add_column('users', Column('preferred_venues', JSON))
-    op.add_column('users', Column('preferred_genres', JSON))
-    op.add_column('users', Column('preferred_neighborhoods', JSON))
+    with op.batch_alter_table('users') as batch_op:
+        batch_op.add_column(Column('preferred_venues', JSON))
+        batch_op.add_column(Column('preferred_genres', JSON))
+        batch_op.add_column(Column('preferred_neighborhoods', JSON))
 
     # Initialize with empty lists
     db = SessionLocal()
@@ -24,6 +25,7 @@ def upgrade():
         db.close()
 
 def downgrade():
-    op.drop_column('users', 'preferred_venues')
-    op.drop_column('users', 'preferred_genres')
-    op.drop_column('users', 'preferred_neighborhoods') 
+    with op.batch_alter_table('users') as batch_op:
+        batch_op.drop_column('preferred_venues')
+        batch_op.drop_column('preferred_genres')
+        batch_op.drop_column('preferred_neighborhoods') 
