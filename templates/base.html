@@ -167,28 +167,45 @@
         /* Add to existing styles */
         .preferences-form {
             max-width: 800px;
-            margin: 0 auto;
+            margin: 40px auto;
+            padding: 20px;
         }
 
         .preference-section {
             margin-bottom: 2em;
+            border: 1px solid var(--wp--preset--color--cyan-bluish-gray);
+            padding: 20px;
+            background-color: rgba(50, 55, 60, 0.8);
+        }
+
+        .preference-section h2 {
+            margin-top: 0;
+            padding-bottom: 10px;
             border-bottom: 1px solid var(--wp--preset--color--cyan-bluish-gray);
-            padding-bottom: 1em;
         }
 
         .checkbox-container {
             display: block;
-            margin: 0.5em 0;
+            margin: 0.8em 0;
+            padding: 8px;
             cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .checkbox-container:hover {
+            background-color: rgba(255, 255, 255, 0.1);
         }
 
         .checkbox-container input[type="checkbox"] {
             margin-right: 1em;
+            accent-color: var(--wp--preset--color--vivid-cyan-blue);
         }
 
-        /* Style the checkboxes */
-        input[type="checkbox"] {
-            accent-color: var(--wp--preset--color--vivid-cyan-blue);
+        /* Style the submit button to match other buttons */
+        .preferences-form button[type="submit"] {
+            margin-top: 20px;
+            width: 100%;
+            padding: 15px;
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -197,6 +214,7 @@
     <nav>
         {% if user %}
             <span>Welcome, {{ user.email }}!</span>
+            <a href="{{ url_for('preferences') }}" class="wp-block-button__link">Preferences</a>
             <a href="{{ url_for('auth.logout') }}" class="wp-block-button__link">Logout</a>
         {% else %}
             <a href="{{ url_for('auth.login') }}" class="wp-block-button__link">Login with Spotify</a>
