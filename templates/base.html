@@ -131,6 +131,29 @@
             margin-bottom: 40px;
             padding: 20px 0;
             border-bottom: 1px solid var(--wp--preset--color--cyan-bluish-gray);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-left {
+            flex: 1;
+        }
+
+        .nav-right {
+            text-align: right;
+        }
+
+        .site-title {
+            color: var(--wp--preset--color--white);
+            text-decoration: none;
+            font-size: 1.5em;
+            font-weight: 300;
+            letter-spacing: 0.05em;
+        }
+
+        .site-title:hover {
+            color: var(--wp--preset--color--cyan-bluish-gray);
         }
 
         .wp-block-button__link {
@@ -224,13 +247,18 @@
 </head>
 <body>
     <nav>
-        {% if user %}
-            <span>Welcome, {{ user.email }}!</span>
-            <a href="{{ url_for('preferences') }}" class="wp-block-button__link">Preferences</a>
-            <a href="{{ url_for('auth.logout') }}" class="wp-block-button__link">Logout</a>
-        {% else %}
-            <a href="{{ url_for('auth.login') }}" class="wp-block-button__link">Login with Spotify</a>
-        {% endif %}
+        <div class="nav-left">
+            <a href="{{ url_for('index') }}" class="site-title">Jazz Listings</a>
+        </div>
+        <div class="nav-right">
+            {% if user %}
+                <span>Welcome, {{ user.email }}!</span>
+                <a href="{{ url_for('preferences') }}" class="wp-block-button__link">Preferences</a>
+                <a href="{{ url_for('auth.logout') }}" class="wp-block-button__link">Logout</a>
+            {% else %}
+                <a href="{{ url_for('auth.login') }}" class="wp-block-button__link">Login with Spotify</a>
+            {% endif %}
+        </div>
     </nav>
 
     <div class="content">
