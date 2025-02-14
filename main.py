@@ -2,8 +2,8 @@ from crawler import Crawler
 from parser import parse_markdown
 from database import Session, SessionLocal, init_db
 from models import Artist, Venue, Concert, ConcertTime, User
-from datetime import datetime, timedelta, time
-from time import sleep
+from datetime import datetime, timedelta, time as datetime_time
+import time
 import random
 from tenacity import retry, stop_after_attempt, wait_exponential
 from flask import Flask, render_template, session, request, redirect, url_for
@@ -20,8 +20,6 @@ from sqlalchemy.orm import joinedload
 import spotipy
 from fuzzywuzzy import fuzz
 import schedule
-import time
-import pytz
 from urllib.parse import urlencode, quote
 from ics import Calendar, Event
 
@@ -606,7 +604,7 @@ def generate_calendar_links(concert, venue_name, artist_names):
         description += f"Notes: {concert.special_notes}"
         
     # Get the first show time, or use 8 PM as default
-    default_time = time(20, 0)  # Create time object for 8 PM
+    default_time = datetime_time(20, 0)  # Use renamed datetime.time
     show_time = concert.times[0].time if concert.times else default_time
     
     # Create datetime objects for start and end
