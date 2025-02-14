@@ -2,7 +2,7 @@ from crawler import Crawler
 from parser import parse_markdown
 from database import Session, SessionLocal, init_db
 from models import Artist, Venue, Concert, ConcertTime, User
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from time import sleep
 import random
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -606,7 +606,8 @@ def generate_calendar_links(concert, venue_name, artist_names):
         description += f"Notes: {concert.special_notes}"
         
     # Get the first show time, or use 8 PM as default
-    show_time = concert.times[0].time if concert.times else time(20, 0)
+    default_time = time(20, 0)  # Create time object for 8 PM
+    show_time = concert.times[0].time if concert.times else default_time
     
     # Create datetime objects for start and end
     start_dt = datetime.combine(concert.date, show_time)
