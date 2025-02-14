@@ -27,11 +27,21 @@
                 <span class="time">{{ time.time.strftime('%-I:%M %p') }}</span>
                 {% endfor %}
             </div>
-            {% if concert.ticket_link %}
-            <div class="tickets">
-                <a href="{{ concert.ticket_link }}" target="_blank">Tickets</a>
+            <div class="action-links">
+                {% if concert.ticket_link %}
+                <div class="tickets">
+                    <a href="{{ concert.ticket_link }}" target="_blank">Tickets</a>
+                </div>
+                {% endif %}
+                <div class="calendar-links">
+                    <a href="{{ concert.calendar_links.gcal }}" target="_blank" class="calendar-link">
+                        <i class="far fa-calendar-plus"></i> Google Calendar
+                    </a>
+                    <a href="{{ concert.calendar_links.ical }}" class="calendar-link" download="event.ics">
+                        <i class="far fa-calendar-alt"></i> iCal
+                    </a>
+                </div>
             </div>
-            {% endif %}
             {% if concert.special_notes %}
             <div class="notes">{{ concert.special_notes }}</div>
             {% endif %}

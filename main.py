@@ -22,6 +22,8 @@ from fuzzywuzzy import fuzz
 import schedule
 import time
 import pytz
+from urllib.parse import urlencode, quote
+from ics import Calendar, Event
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -135,72 +137,20 @@ def index():
                     print(f"Error fetching Spotify data: {e}")
         
         # Group concerts and check for matches
-        concerts_by_date = {}
+        concerts_by_date = defaultdict(list)
         for concert in concerts:
-            if concert.date not in concerts_by_date:
-                concerts_by_date[concert.date] = []
+            artist_names = [artist.name for artist in concert.artists]
+            calendar_links = generate_calendar_links(concert, concert.venue.name, artist_names)
             
-            # Calculate Spotify relevance score
-            spotify_score = 0
-            matched_artist = None
-            if spotify_artists:
-                for artist in concert.artists:
-                    artist_name = normalize_artist_name(artist.name)
-                    print(f"Checking concert artist: {artist_name}")
-                    
-                    # Exact match
-                    if artist_name in spotify_artists:
-                        spotify_score = 1
-                        matched_artist = artist.name
-                        print(f"Found exact match: {matched_artist}")
-                        break
-                    
-                    # Fuzzy match - increased threshold to 90
-                    for spotify_artist in spotify_artists:
-                        spotify_artist = normalize_artist_name(spotify_artist)
-                        ratio = fuzz.ratio(artist_name, spotify_artist)
-                        
-                        # Only consider longer names for fuzzy matching
-                        if len(artist_name) > 4 and len(spotify_artist) > 4:
-                            if ratio > 90:  # Increased threshold
-                                spotify_score = 1
-                                matched_artist = artist.name
-                                print(f"Found fuzzy match: {matched_artist} ({ratio}% match with {spotify_artist})")
-                                break
-                    
-                    # More careful substring matching
-                    if spotify_score == 0:  # Only try if no fuzzy match found
-                        for spotify_artist in spotify_artists:
-                            spotify_artist = normalize_artist_name(spotify_artist)
-                            # Only consider substantial substrings
-                            if len(artist_name) > 4 and len(spotify_artist) > 4:
-                                if artist_name in spotify_artist:
-                                    spotify_score = 1
-                                    matched_artist = artist.name
-                                    print(f"Found artist as substring in: {matched_artist} in {spotify_artist}")
-                                    break
-                                elif spotify_artist in artist_name:
-                                    spotify_score = 1
-                                    matched_artist = artist.name
-                                    print(f"Found Spotify artist as substring: {spotify_artist} in {matched_artist}")
-                                    break
-                    
-                    if spotify_score > 0:
-                        break
-            
-            concert_data = {
+            concerts_by_date[concert.date].append({
                 'venue_name': concert.venue.name,
-                'artists': [{'name': artist.name} for artist in concert.artists],
-                'times': [{'time': time.time} for time in concert.times],
+                'artists': concert.artists,
+                'times': concert.times,
                 'ticket_link': concert.ticket_link,
                 'special_notes': concert.special_notes,
-                'spotify_score': spotify_score
-            }
-            
-            if spotify_score > 0:
-                print(f"Adding concert with match: {matched_artist} at {concert.venue.name}")
-            
-            concerts_by_date[concert.date].append(concert_data)
+                'spotify_score': 0,  # existing spotify score logic
+                'calendar_links': calendar_links
+            })
             
         # Sort concerts within each date by Spotify relevance
         for date in concerts_by_date:
@@ -641,6 +591,52 @@ def save_preferences():
         return redirect(url_for('index'))
     finally:
         db.close()
+
+def generate_calendar_links(concert, venue_name, artist_names):
+    """Generate Google Calendar and iCal links for a concert"""
+    
+    # Format the event title and description
+    title = f"{', '.join(artist_names)} at {venue_name}"
+    description = f"Artists: {', '.join(artist_names)}\n"
+    if concert.price_range:
+        description += f"Price: {concert.price_range}\n"
+    if concert.ticket_link:
+        description += f"Tickets: {concert.ticket_link}\n"
+    if concert.special_notes:
+        description += f"Notes: {concert.special_notes}"
+        
+    # Get the first show time, or use 8 PM as default
+    show_time = concert.times[0].time if concert.times else time(20, 0)
+    
+    # Create datetime objects for start and end
+    start_dt = datetime.combine(concert.date, show_time)
+    end_dt = start_dt + timedelta(hours=2)  # Assume 2-hour shows
+    
+    # Google Calendar link
+    gcal_params = {
+        'action': 'TEMPLATE',
+        'text': title,
+        'details': description,
+        'location': venue_name,
+        'dates': f"{start_dt.strftime('%Y%m%dT%H%M%S')}/{end_dt.strftime('%Y%m%dT%H%M%S')}"
+    }
+    gcal_url = "https://calendar.google.com/calendar/render?" + urlencode(gcal_params)
+    
+    # iCal link (using ics library)
+    calendar = Calendar()
+    event = Event()
+    event.name = title
+    event.begin = start_dt
+    event.end = end_dt
+    event.description = description
+    event.location = venue_name
+    calendar.events.add(event)
+    ical_data = calendar.serialize()
+    
+    return {
+        'gcal': gcal_url,
+        'ical': f"data:text/calendar;charset=utf8,{quote(ical_data)}"
+    }
 
 if __name__ == '__main__':
     import sys

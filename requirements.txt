@@ -11,3 +11,4 @@ schedule
 spotipy
 tenacity
 werkzeug
+ics==0.7.2

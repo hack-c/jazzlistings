@@ -242,6 +242,34 @@
             display: inline-block;
             margin-right: 20px;
         }
+
+        /* Add to existing styles */
+        .action-links {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+        }
+
+        .calendar-links {
+            display: flex;
+            gap: 10px;
+        }
+
+        .calendar-link {
+            color: var(--wp--preset--color--cyan-bluish-gray);
+            text-decoration: none;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .calendar-link:hover {
+            color: var(--wp--preset--color--white);
+        }
+
+        .calendar-link i {
+            margin-right: 4px;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
