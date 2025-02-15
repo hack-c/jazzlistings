@@ -184,14 +184,10 @@ def process_venue(venue_info, session):
         print(f"Last scraped: {venue.last_scraped}")
         
         if venue.last_scraped:
-            # Get current time in UTC
             now = datetime.now(pytz.UTC)
             venue_last_scraped = venue.last_scraped.replace(tzinfo=pytz.UTC)
             time_since_scrape = now - venue_last_scraped
             
-            print(f"Time since last scrape: {time_since_scrape}")
-            
-            # If venue was scraped in last 24 hours, skip it
             if time_since_scrape < timedelta(hours=24):
                 print(f"Skipping {venue_name} - was scraped {time_since_scrape.total_seconds()/3600:.1f} hours ago")
                 return
@@ -202,18 +198,29 @@ def process_venue(venue_info, session):
     
     print(f"Scraping {venue_name} at {venue_url}")
     
-    # Add minimum 6 second delay between requests (10 req/min)
+    # Add minimum delay between requests
     time.sleep(random.uniform(6, 8))
     
-    crawler = Crawler()
     try:
-        markdown_content = scrape_with_retry(crawler, venue_url, venue_name)
-        if not markdown_content:
-            print(f"Failed to scrape markdown content for {venue_name}")
-            return
-        
-        print(f"Parsing markdown content for {venue_name}")
-        concert_data_list = parse_markdown(markdown_content, venue_info)
+        # Use special scrapers for specific venues
+        if venue_name == 'Close Up':
+            from closeup_scraper import scrape_closeup
+            concert_data_list = scrape_closeup()
+        elif venue_name == 'Village Vanguard':
+            from vanguard_scraper import scrape_vanguard
+            concert_data_list = scrape_vanguard()
+        elif 'ra.co' in venue_url:  # Check if it's an RA venue
+            from ra_scraper import scrape_ra
+            concert_data_list = scrape_ra(venue_url)
+        else:
+            # Use regular firecrawl scraper for other venues
+            crawler = Crawler()
+            markdown_content = scrape_with_retry(crawler, venue_url, venue_name)
+            if not markdown_content:
+                print(f"Failed to scrape content for {venue_name}")
+                return
+            concert_data_list = parse_markdown(markdown_content, venue_info)
+            
         if concert_data_list:
             print(f"Storing concert data for {venue_name}")
             store_concert_data(session, concert_data_list, venue_info)
@@ -221,12 +228,11 @@ def process_venue(venue_info, session):
             # Update last_scraped timestamp
             if venue:
                 venue.last_scraped = datetime.now(pytz.UTC)
-                print(f"Updated last_scraped for {venue_name} to {venue.last_scraped}")
+                print(f"Updated last_scraped for {venue_name}")
                 session.commit()
-                print(f"Committed last_scraped update for {venue_name}")
-            
         else:
-            print(f"Failed to parse concert data for {venue_name}")
+            print(f"No concert data found for {venue_name}")
+            
     except Exception as e:
         print(f"Error processing {venue_name}: {e}")
 
@@ -292,7 +298,7 @@ def main():
         {'name': 'Village Vanguard', 'url': 'https://villagevanguard.com', 'default_times': ['8:00 PM', '10:00 PM']},
         {'name': 'Smalls Jazz Club', 'url': 'https://www.smallslive.com', 'default_times': ['7:30 PM', '10:00 PM', '11:30 PM']},
         {'name': 'Mezzrow Jazz Club', 'url': 'https://mezzrow.com/', 'default_times': ['7:30 PM', '9:00 PM', '10:30 PM']},
-        {'name': 'Dizzy\'s Club', 'url': 'https://jazz.org/dizzys-club/', 'default_times': ['7:30 PM', '9:30 PM']},
+        {'name': 'Dizzy\'s Club', 'url': 'https://jazz.org/concerts-events/calendar/', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'The Jazz Gallery', 'url': 'https://jazzgallery.org/calendar/', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'Blue Note', 'url': 'https://www.bluenotejazz.com/nyc', 'default_times': ['8:00 PM', '10:30 PM']},
         {'name': 'Ornithology Jazz Club', 'url': 'https://www.ornithologyjazzclub.com/events-2/', 'default_times': ['6:30 PM', '8:30 PM', '9:00 PM']},
@@ -334,6 +340,12 @@ def main():
         {'name': 'The Appel Room', 'url': 'https://www.lincolncenter.org/venue/the-appel-room/v/calendar', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'Symphony Space', 'url': 'https://www.symphonyspace.org/events', 'default_times': ['7:00 PM', '9:00 PM']},
         {'name': 'Le Poisson Rouge', 'url': 'https://www.lpr.com/', 'default_times': ['7:00 PM', '9:30 PM']},
+        {'name': 'Close Up', 
+         'url': 'https://www.closeupnyc.com/calendar', 
+         'default_times': ['7:00 PM', '9:00 PM'],
+         'neighborhood': 'Lower East Side',
+         'genres': ['Jazz']
+        },
     ]
     
     # Calculate scraping parameters
