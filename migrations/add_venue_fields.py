@@ -60,7 +60,6 @@ def upgrade():
                 'neighborhood': 'Bushwick',
                 'genres': ['Clubs']
             },
-            # Galleries
             'National Sawdust': {
                 'neighborhood': 'Williamsburg',
                 'genres': ['Jazz', 'Classical']
@@ -73,6 +72,10 @@ def upgrade():
             'MoMA': {
                 'neighborhood': 'Midtown',
                 'genres': ['Museums']
+            },
+            'Close Up': {         
+                'neighborhood': 'Lower East Side',
+                'genres': ['Jazz']
             }
         }
 
