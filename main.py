@@ -188,9 +188,18 @@ def process_venue(venue_info, session):
             venue_last_scraped = venue.last_scraped.replace(tzinfo=pytz.UTC)
             time_since_scrape = now - venue_last_scraped
             
-            if time_since_scrape < timedelta(hours=24):
-                print(f"Skipping {venue_name} - was scraped {time_since_scrape.total_seconds()/3600:.1f} hours ago")
+            # Check if venue has any upcoming concerts
+            has_concerts = session.query(Concert).join(Venue).filter(
+                Venue.name == venue_name,
+                Concert.date >= datetime.now().date()
+            ).first() is not None
+            
+            # Skip only if recently scraped AND has upcoming concerts
+            if time_since_scrape < timedelta(hours=24) and has_concerts:
+                print(f"Skipping {venue_name} - was scraped {time_since_scrape.total_seconds()/3600:.1f} hours ago and has upcoming concerts")
                 return
+            elif not has_concerts:
+                print(f"Processing {venue_name} - no upcoming concerts found")
             else:
                 print(f"Processing {venue_name} - last scrape was {time_since_scrape.total_seconds()/3600:.1f} hours ago")
     else:
