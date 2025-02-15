@@ -12,6 +12,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def scrape_closeup():
     """Scrape Close Up's calendar using Selenium"""
+    url = "https://www.closeupnyc.com/calendar"
+    logging.info("Fetching Close Up calendar")
+    
     # Set up Selenium with Chrome options
     options = Options()
     options.add_argument('--headless')
@@ -22,7 +25,6 @@ def scrape_closeup():
     events = []
 
     try:
-        url = "https://www.closeupnyc.com/calendar"
         logging.info(f"Loading URL: {url}")
         driver.get(url)
 
@@ -59,11 +61,13 @@ def scrape_closeup():
                     "ticket_link": ticket_link,
                 }
                 events.append(event)
-                logging.info(f"Extracted event: {artist} on {date}")
+                logging.debug(f"Extracted: {artist} on {date}")
 
             except Exception as e:
-                logging.warning(f"Error processing event card: {e}")
+                logging.error(f"Error processing event card: {e}")
                 continue
+
+        logging.info(f"Found {len(events)} events")
 
     except Exception as e:
         logging.error(f"Error scraping Close Up: {e}")

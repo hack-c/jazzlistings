@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def scrape_knockdown():
     """Scrape the Knockdown Center website for events."""
     url = "https://knockdown.center/upcoming/"
-    logging.info(f"Fetching Knockdown Center calendar from {url}")
+    logging.info("Fetching Knockdown Center calendar")
     
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36"
@@ -19,7 +19,6 @@ def scrape_knockdown():
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         
-        # Find the container with the events
         article = soup.find("article", id="upcoming")
         if not article:
             logging.error("Could not find the 'upcoming' article")
@@ -33,7 +32,6 @@ def scrape_knockdown():
         events = []
         current_year = datetime.now().year
         
-        # Iterate over each event
         for li in ul.find_all("li", recursive=False):
             try:
                 # Extract event title
@@ -74,15 +72,15 @@ def scrape_knockdown():
                     "special_notes": ""
                 }
                 events.append(event)
-                logging.info(f"Extracted event: {artist} on {date_formatted}")
+                logging.debug(f"Extracted: {artist} on {date_formatted}")
                 
             except Exception as e:
                 logging.error(f"Error processing event: {e}")
                 continue
                 
-        logging.info(f"Successfully scraped {len(events)} events from Knockdown Center")
+        logging.info(f"Found {len(events)} events")
         return events
         
     except Exception as e:
-        logging.error(f"Failed to scrape Knockdown Center page: {e}")
+        logging.error(f"Failed to scrape Knockdown Center: {e}")
         return [] 

@@ -23,6 +23,7 @@ import schedule
 from urllib.parse import urlencode, quote
 from ics import Calendar, Event
 import pytz
+import logging
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -44,6 +45,14 @@ print("Environment Variables:")
 print(f"SPOTIFY_CLIENT_ID: {'set' if os.getenv('SPOTIFY_CLIENT_ID') else 'not set'}")
 print(f"SPOTIFY_CLIENT_SECRET: {'set' if os.getenv('SPOTIFY_CLIENT_SECRET') else 'not set'}")
 print(f"SPOTIFY_REDIRECT_URI: {os.getenv('SPOTIFY_REDIRECT_URI')}")
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+
+# Reduce SQLAlchemy logging noise
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
 
 @app.route('/')
 def index():
@@ -179,33 +188,27 @@ def process_venue(venue_info, session):
     
     # Check if venue exists and was recently scraped
     venue = session.query(Venue).filter_by(name=venue_name).first()
-    if venue:
-        print(f"Found existing venue: {venue_name}")
-        print(f"Last scraped: {venue.last_scraped}")
+    if venue and venue.last_scraped:
+        now = datetime.now(pytz.UTC)
+        venue_last_scraped = venue.last_scraped.replace(tzinfo=pytz.UTC)
+        time_since_scrape = now - venue_last_scraped
         
-        if venue.last_scraped:
-            now = datetime.now(pytz.UTC)
-            venue_last_scraped = venue.last_scraped.replace(tzinfo=pytz.UTC)
-            time_since_scrape = now - venue_last_scraped
-            
-            # Check if venue has any upcoming concerts
-            has_concerts = session.query(Concert).join(Venue).filter(
-                Venue.name == venue_name,
-                Concert.date >= datetime.now().date()
-            ).first() is not None
-            
-            # Skip only if recently scraped AND has upcoming concerts
-            if time_since_scrape < timedelta(hours=24) and has_concerts:
-                print(f"Skipping {venue_name} - was scraped {time_since_scrape.total_seconds()/3600:.1f} hours ago and has upcoming concerts")
-                return
-            elif not has_concerts:
-                print(f"Processing {venue_name} - no upcoming concerts found")
-            else:
-                print(f"Processing {venue_name} - last scrape was {time_since_scrape.total_seconds()/3600:.1f} hours ago")
+        # Check if venue has any upcoming concerts
+        has_concerts = session.query(Concert).join(Venue).filter(
+            Venue.name == venue_name,
+            Concert.date >= datetime.now().date()
+        ).first() is not None
+        
+        # Skip only if recently scraped AND has upcoming concerts
+        if time_since_scrape < timedelta(hours=24) and has_concerts:
+            logging.info(f"Skipping {venue_name} - scraped {time_since_scrape.total_seconds()/3600:.1f}h ago with concerts")
+            return
+        elif not has_concerts:
+            logging.info(f"Processing {venue_name} - no upcoming concerts")
+        else:
+            logging.info(f"Processing {venue_name} - last scrape {time_since_scrape.total_seconds()/3600:.1f}h ago")
     else:
-        print(f"New venue: {venue_name}")
-    
-    print(f"Scraping {venue_name} at {venue_url}")
+        logging.info(f"Processing {venue_name} - new venue")
     
     # Add minimum delay between requests
     time.sleep(random.uniform(6, 8))
@@ -213,40 +216,44 @@ def process_venue(venue_info, session):
     try:
         # Use special scrapers for specific venues
         if venue_name == 'Close Up':
+            logging.info(f"Using custom scraper for {venue_name}")
             from closeup_scraper import scrape_closeup
             concert_data_list = scrape_closeup()
         elif venue_name == 'Village Vanguard':
+            logging.info(f"Using custom scraper for {venue_name}")
             from vanguard_scraper import scrape_vanguard
             concert_data_list = scrape_vanguard()
         elif venue_name == 'Knockdown Center':
+            logging.info(f"Using custom scraper for {venue_name}")
             from knockdown_scraper import scrape_knockdown
             concert_data_list = scrape_knockdown()
-        elif 'ra.co' in venue_url:  # Check if it's an RA venue
+        elif 'ra.co' in venue_url:
+            logging.info(f"Using RA scraper for {venue_name}")
             from ra_scraper import scrape_ra
             concert_data_list = scrape_ra(venue_url)
         else:
-            # Use regular firecrawl scraper for other venues
+            logging.info(f"Using Firecrawl for {venue_name}")
             crawler = Crawler()
             markdown_content = scrape_with_retry(crawler, venue_url, venue_name)
             if not markdown_content:
-                print(f"Failed to scrape content for {venue_name}")
+                logging.error(f"Failed to scrape {venue_name}")
                 return
             concert_data_list = parse_markdown(markdown_content, venue_info)
             
         if concert_data_list:
-            print(f"Storing concert data for {venue_name}")
-            store_concert_data(session, concert_data_list, venue_info)
+            logging.info(f"Found {len(concert_data_list)} concerts for {venue_name}")
+            for concert in concert_data_list:
+                logging.info(f"  {venue_name}: {concert['artist']} on {concert['date']}")
             
-            # Update last_scraped timestamp
+            store_concert_data(session, concert_data_list, venue_info)
             if venue:
                 venue.last_scraped = datetime.now(pytz.UTC)
-                print(f"Updated last_scraped for {venue_name}")
                 session.commit()
         else:
-            print(f"No concert data found for {venue_name}")
+            logging.info(f"No concerts found for {venue_name}")
             
     except Exception as e:
-        print(f"Error processing {venue_name}: {e}")
+        logging.error(f"Error processing {venue_name}: {e}")
 
 @retry(
     stop=stop_after_attempt(3),
