@@ -119,7 +119,7 @@ def index():
         eastern = pytz.timezone('America/New_York')
         now = datetime.now(eastern)
         today = now.date()
-        thirty_days = today + timedelta(days=30)
+        three_months = today + timedelta(days=90)
         
         # Get user preferences if logged in
         user_preferences = None
@@ -155,7 +155,7 @@ def index():
         # Apply date filters
         query = query.filter(
             Concert.date >= today,
-            Concert.date <= thirty_days,
+            Concert.date <= three_months,
             (Concert.date > today) | 
             ((Concert.date == today) & 
              (Concert.times.any(ConcertTime.time >= now.time())))
