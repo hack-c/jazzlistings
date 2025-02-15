@@ -132,16 +132,25 @@
             padding: 20px 0;
             border-bottom: 1px solid var(--wp--preset--color--cyan-bluish-gray);
             display: flex;
+            flex-direction: row;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .nav-left {
-            flex: 1;
+            flex: 0 1 auto;
         }
 
         .nav-right {
+            flex: 1 1 auto;
             text-align: right;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+            align-items: center;
         }
 
         .site-title {
@@ -269,6 +278,36 @@
 
         .calendar-link i {
             margin-right: 4px;
+        }
+
+        /* Add responsive styles */
+        @media (max-width: 768px) {
+            nav {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .nav-left {
+                text-align: center;
+                margin-bottom: 10px;
+            }
+            
+            .nav-right {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+            
+            .nav-right span {
+                /* Email address */
+                display: block;
+                margin-bottom: 5px;
+            }
+            
+            .wp-block-button__link {
+                display: block;
+                text-align: center;
+            }
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
