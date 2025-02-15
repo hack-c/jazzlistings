@@ -218,6 +218,9 @@ def process_venue(venue_info, session):
         elif venue_name == 'Village Vanguard':
             from vanguard_scraper import scrape_vanguard
             concert_data_list = scrape_vanguard()
+        elif venue_name == 'Knockdown Center':
+            from knockdown_scraper import scrape_knockdown
+            concert_data_list = scrape_knockdown()
         elif 'ra.co' in venue_url:  # Check if it's an RA venue
             from ra_scraper import scrape_ra
             concert_data_list = scrape_ra(venue_url)
