@@ -2,10 +2,15 @@
 
 {% block content %}
 <div class="preferences-form">
-    <h1>Your Preferences</h1>
-    <a href="{{ url_for('index') }}" class="wp-block-button__link back-button">Back to Shows</a>
+    <div class="header-row">
+        <h1>Your Preferences</h1>
+        <div class="header-buttons">
+            <a href="{{ url_for('index') }}" class="wp-block-button__link back-button">Back to Shows</a>
+            <button type="submit" form="preferences-form" class="wp-block-button__link">Save Preferences</button>
+        </div>
+    </div>
     
-    <form method="POST" action="{{ url_for('save_preferences') }}">
+    <form id="preferences-form" method="POST" action="{{ url_for('save_preferences') }}">
         <div class="preference-section">
             <h2>Venues</h2>
             {% for venue in venues %}

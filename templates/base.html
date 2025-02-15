@@ -309,6 +309,50 @@
                 text-align: center;
             }
         }
+
+        /* Add to existing styles */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .preferences-form h1 {
+            margin: 0;  /* Remove default margin */
+        }
+
+        /* Update existing preferences-form styles */
+        .preferences-form {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .header-row {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+            
+            .header-buttons {
+                flex-direction: column;
+            }
+            
+            .header-buttons .wp-block-button__link {
+                width: 100%;
+            }
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
