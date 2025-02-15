@@ -241,22 +241,12 @@ def process_venue(venue_info, session):
         
         # Try custom scraper first if available
         concert_data = []
-        if has_custom_scraper(venue_name):
+        if has_custom_scraper(venue_name, venue_url):
             logging.info(f"Using custom scraper for {venue_name}")
-            concert_data = use_custom_scraper(venue_name)
+            concert_data = use_custom_scraper(venue_name, venue_url)
         else:
-            # Use Firecrawl as fallback
-            logging.info(f"Using Firecrawl for {venue_name}")
-            try:
-                concert_data = use_firecrawl(venue_url)
-            except Exception as e:
-                if "rate limit" in str(e).lower():
-                    logging.error("Firecrawl rate limit detected - killing scraper process")
-                    # Kill the current process
-                    os.kill(os.getpid(), signal.SIGTERM)
-                else:
-                    logging.error(f"Error using Firecrawl: {e}")
-                return
+            # Use Firecrawl for other venues
+            concert_data = use_firecrawl(venue_url, venue_name, venue_info)
         
         if not concert_data:
             logging.info(f"No concerts found for {venue_name}")
@@ -279,6 +269,10 @@ def is_credit_limit_error(error_msg):
     error_msg = error_msg.lower()
     return any(indicator in error_msg for indicator in credit_limit_indicators)
 
+class FirecrawlCreditLimitError(Exception):
+    """Raised when Firecrawl credit limit is reached"""
+    pass
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=10, min=10, max=120),
@@ -294,18 +288,25 @@ def scrape_with_retry(crawler, url, venue_name):
             logging.info(f"Rate limit hit for {venue_name}, backing off...")
             time.sleep(random.uniform(15, 20))
         elif is_credit_limit_error(error_msg):
-            logging.error("Firecrawl credit limit reached - killing scraper process")
-            os.kill(os.getpid(), signal.SIGTERM)
-            return None  # This won't actually execute due to the kill
+            raise FirecrawlCreditLimitError("Firecrawl credit limit reached")
         raise
 
-def use_firecrawl(venue_url):
+def use_firecrawl(venue_url, venue_name, venue_info):
     """Use Firecrawl to scrape a venue"""
-    crawler = Crawler()
-    markdown_content = scrape_with_retry(crawler, venue_url, venue_name)
-    if not markdown_content:
+    try:
+        crawler = Crawler()
+        markdown_content = scrape_with_retry(crawler, venue_url, venue_name)
+        if not markdown_content:
+            return []
+        return parse_markdown(markdown_content, venue_info)
+    except FirecrawlCreditLimitError:
+        logging.error("Firecrawl credit limit reached - stopping scraper")
+        # Signal the main loop to stop
+        threading.current_thread().stop_flag = True
         return []
-    return parse_markdown(markdown_content, venue_info)
+    except Exception as e:
+        logging.error(f"Error using Firecrawl: {e}")
+        return []
 
 def calculate_scrape_params(venue_count):
     """Calculate scraping parameters based on rate limits
@@ -547,6 +548,9 @@ def run_scraper_schedule():
         except Exception as e:
             logging.error(f"Error in scheduled scraper: {e}")
 
+    # Add stop flag to thread
+    threading.current_thread().stop_flag = False
+    
     # Schedule the job to run daily at 4 AM
     schedule.every().day.at("04:00").do(scheduled_job)
     
@@ -554,7 +558,7 @@ def run_scraper_schedule():
     logging.info("Running initial scraper")
     scheduled_job()
     
-    while True:
+    while not getattr(threading.current_thread(), 'stop_flag', False):
         schedule.run_pending()
         time.sleep(60)  # Check every minute
 
@@ -756,17 +760,23 @@ def check_existing_concerts(session, venue_name):
             return upcoming_concerts
     return []
 
-def has_custom_scraper(venue_name):
-    """Check if venue has a custom scraper"""
+def has_custom_scraper(venue_name, venue_url):
+    """Check if venue has a custom scraper or uses RA"""
     custom_scrapers = {
         'Close Up': True,
         'Village Vanguard': True,
         'Knockdown Center': True
     }
-    return custom_scrapers.get(venue_name, False)
+    return custom_scrapers.get(venue_name, False) or 'ra.co' in venue_url
 
-def use_custom_scraper(venue_name):
+def use_custom_scraper(venue_name, venue_url):
     """Use the appropriate custom scraper for a venue"""
+    # Check for RA venues first
+    if 'ra.co' in venue_url:
+        from ra_scraper import scrape_ra
+        return scrape_ra(venue_url)
+        
+    # Use venue-specific scrapers
     if venue_name == 'Close Up':
         from closeup_scraper import scrape_closeup
         return scrape_closeup()
