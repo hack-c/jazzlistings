@@ -14,37 +14,26 @@ def upgrade():
     try:
         # Define known venue neighborhoods and genres
         venue_data = {
-            # Jazz Venues
-            'Blue Note': {
+            # Movie Theaters
+            'IFC Center': {
                 'neighborhood': 'Greenwich Village',
-                'genres': ['Jazz']
+                'genres': ['Movies']
             },
-            'Birdland': {
-                'neighborhood': 'Theater District',
-                'genres': ['Jazz']
-            },
-            'Smalls Jazz Club': {
+            'Film Forum': {
                 'neighborhood': 'Greenwich Village',
-                'genres': ['Jazz']
+                'genres': ['Movies']
             },
-            'Village Vanguard': {
+            'Quad Cinema': {
                 'neighborhood': 'Greenwich Village',
-                'genres': ['Jazz']
+                'genres': ['Movies']
             },
-            'Dizzy\'s Club': {
-                'neighborhood': 'Upper West Side',
-                'genres': ['Jazz']
-            },
-            'The Jazz Gallery': {
-                'neighborhood': 'Flatiron District',
-                'genres': ['Jazz']
-            },
-            'Mezzrow': {
-                'neighborhood': 'Greenwich Village',
-                'genres': ['Jazz']
-            },
-            # Clubs
+            
+            # Clubs (Electronic/Dance)
             'Mansions': {
+                'neighborhood': 'Bushwick',
+                'genres': ['Clubs']
+            },
+            'Jupiter Disco': {
                 'neighborhood': 'Bushwick',
                 'genres': ['Clubs']
             },
@@ -60,21 +49,152 @@ def upgrade():
                 'neighborhood': 'Bushwick',
                 'genres': ['Clubs']
             },
+            'Good Room': {
+                'neighborhood': 'Greenpoint',
+                'genres': ['Clubs']
+            },
+            'Nowadays': {
+                'neighborhood': 'Ridgewood',
+                'genres': ['Clubs']
+            },
+            'Public Records': {
+                'neighborhood': 'Gowanus',
+                'genres': ['Clubs']
+            },
+            'The Sultan Room': {
+                'neighborhood': 'Bushwick',
+                'genres': ['Clubs']
+            },
+            'Black Flamingo': {
+                'neighborhood': 'Williamsburg',
+                'genres': ['Clubs']
+            },
+            '3 Dollar Bill': {
+                'neighborhood': 'East Williamsburg',
+                'genres': ['Clubs']
+            },
+            'Knockdown Center': {
+                'neighborhood': 'Maspeth',
+                'genres': ['Clubs', 'Galleries']
+            },
+
+            # Jazz Venues
+            'Village Vanguard': {
+                'neighborhood': 'Greenwich Village',
+                'genres': ['Jazz']
+            },
+            'Blue Note': {
+                'neighborhood': 'Greenwich Village',
+                'genres': ['Jazz']
+            },
+            'Smalls Jazz Club': {
+                'neighborhood': 'Greenwich Village',
+                'genres': ['Jazz']
+            },
+            'Mezzrow Jazz Club': {
+                'neighborhood': 'Greenwich Village',
+                'genres': ['Jazz']
+            },
+            'Dizzy\'s Club': {
+                'neighborhood': 'Columbus Circle',
+                'genres': ['Jazz']
+            },
+            'The Jazz Gallery': {
+                'neighborhood': 'Flatiron',
+                'genres': ['Jazz']
+            },
+            'Birdland': {
+                'neighborhood': 'Theater District',
+                'genres': ['Jazz']
+            },
+            'Close Up': {
+                'neighborhood': 'Lower East Side',
+                'genres': ['Jazz']
+            },
+            'Bar LunÀtico': {
+                'neighborhood': 'Bedford-Stuyvesant',
+                'genres': ['Jazz']
+            },
+            'Bar Bayeux': {
+                'neighborhood': 'Prospect Heights',
+                'genres': ['Jazz']
+            },
+            'Marians Jazz Room': {
+                'neighborhood': 'Williamsburg',
+                'genres': ['Jazz']
+            },
+            'The Owl Music Parlor': {
+                'neighborhood': 'Prospect Heights',
+                'genres': ['Jazz']
+            },
+            'Zinc Bar': {
+                'neighborhood': 'Greenwich Village',
+                'genres': ['Jazz']
+            },
+            'Mona\'s': {
+                'neighborhood': 'East Village',
+                'genres': ['Jazz']
+            },
+            'The Stone': {
+                'neighborhood': 'East Village',
+                'genres': ['Jazz']
+            },
+            'Ornithology Jazz Club': {
+                'neighborhood': 'Bushwick',
+                'genres': ['Jazz']
+            },
+            'Ornithology Cafe': {
+                'neighborhood': 'Bushwick',
+                'genres': ['Jazz']
+            },
+            'Smoke Jazz & Supper Club': {
+                'neighborhood': 'Upper West Side',
+                'genres': ['Jazz']
+            },
+            'Room 623 at B2 Harlem': {
+                'neighborhood': 'Harlem',
+                'genres': ['Jazz']
+            },
+            'Minton\'s Playhouse': {
+                'neighborhood': 'Harlem',
+                'genres': ['Jazz']
+            },
+
+            # Mixed Genre Venues
+            'Roulette': {
+                'neighborhood': 'Downtown Brooklyn',
+                'genres': ['Jazz', 'Galleries']
+            },
             'National Sawdust': {
                 'neighborhood': 'Williamsburg',
                 'genres': ['Jazz', 'Classical']
             },
-            'Roulette': {
-                'neighborhood': 'Downtown Brooklyn',
+            'Le Poisson Rouge': {
+                'neighborhood': 'Greenwich Village',
                 'genres': ['Jazz']
             },
-            # Museums
-            'MoMA': {
-                'neighborhood': 'Midtown',
-                'genres': ['Museums']
+            'Drom': {
+                'neighborhood': 'East Village',
+                'genres': ['Jazz']
             },
-            'Close Up': {         
-                'neighborhood': 'Lower East Side',
+            'The Django': {
+                'neighborhood': 'Tribeca',
+                'genres': ['Jazz']
+            },
+            'Joe\'s Pub': {
+                'neighborhood': 'NoHo',
+                'genres': ['Jazz']
+            },
+            'Symphony Space': {
+                'neighborhood': 'Upper West Side',
+                'genres': ['Classical']
+            },
+            'The Cutting Room': {
+                'neighborhood': 'Flatiron',
+                'genres': ['Jazz', 'Clubs']
+            },
+            'Nublu 151': {
+                'neighborhood': 'East Village',
                 'genres': ['Jazz']
             }
         }
