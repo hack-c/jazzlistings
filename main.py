@@ -64,27 +64,36 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
-# At the start of the app, before creating any new threads
+# Add at the very start of the file, right after imports
 def kill_existing_scrapers():
-    """Kill any existing scraper threads from previous deployments"""
-    current_process = psutil.Process(os.getpid())
-    
-    # Get all threads in the current process
-    for thread in threading.enumerate():
-        if thread != threading.current_thread() and "scraper" in thread.name.lower():
-            logging.info(f"Stopping existing scraper thread: {thread.name}")
-            thread.join(timeout=1.0)  # Give thread 1 second to clean up
-    
-    # Kill any child processes that might be running scrapers
-    for child in current_process.children(recursive=True):
-        try:
-            logging.info(f"Terminating child process: {child.pid}")
-            child.terminate()
-            child.wait(timeout=1.0)
-        except psutil.TimeoutExpired:
-            child.kill()  # Force kill if it doesn't terminate gracefully
-        except psutil.NoSuchProcess:
-            pass  # Process already terminated
+    """Kill any existing scraper threads and processes"""
+    try:
+        # Kill all Python processes that might be running scrapers
+        current_pid = os.getpid()
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                # Skip the current process
+                if proc.pid == current_pid:
+                    continue
+                    
+                # Check if it's a Python process
+                if 'python' in proc.name().lower():
+                    cmdline = proc.cmdline()
+                    # Check if it's running our scraper
+                    if any('main.py' in cmd for cmd in cmdline):
+                        logging.info(f"Killing old scraper process: {proc.pid}")
+                        proc.kill()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+                
+        # Kill threads in current process
+        for thread in threading.enumerate():
+            if thread != threading.current_thread() and "scraper" in thread.name.lower():
+                logging.info(f"Stopping existing scraper thread: {thread.name}")
+                thread.join(timeout=1.0)
+                
+    except Exception as e:
+        logging.error(f"Error killing scrapers: {e}")
 
 @app.route('/')
 def index():
@@ -724,6 +733,9 @@ if __name__ == '__main__':
     from werkzeug.serving import run_simple
     from werkzeug.middleware.proxy_fix import ProxyFix
     
+    # Kill any existing scrapers first
+    kill_existing_scrapers()
+    
     # Wrap the app to fix protocol headers
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
     
@@ -732,13 +744,15 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         if "no-scrape" in sys.argv:
             run_scraper = False
-            print("\nStarting web server without scraper...")
+            logging.info("Starting web server without scraper")
         elif "server" in sys.argv:
-            print("\nStarting web server with scraper...")
+            logging.info("Starting web server with scraper")
     
     # Initialize based on arguments
     init_db()
     if run_scraper:
+        # Kill scrapers again just to be sure
+        kill_existing_scrapers()
         scraper_thread = start_scraper_thread()
         atexit.register(lambda: scraper_thread.join(timeout=1.0))
     
