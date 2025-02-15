@@ -526,11 +526,32 @@ def store_concert_data(session, concert_data_list, venue_info):
             session.rollback()
             continue
 
+def run_scraper_schedule():
+    """Run the scraper on a schedule"""
+    def scheduled_job():
+        logging.info("Running scheduled scraper")
+        try:
+            main()
+            logging.info("Scheduled scraper completed successfully")
+        except Exception as e:
+            logging.error(f"Error in scheduled scraper: {e}")
+
+    # Schedule the job to run daily at 4 AM
+    schedule.every().day.at("04:00").do(scheduled_job)
+    
+    # Run the scraper immediately on startup
+    logging.info("Running initial scraper")
+    scheduled_job()
+    
+    while True:
+        schedule.run_pending()
+        time.sleep(60)  # Check every minute
+
 def start_scraper_thread():
     """Start the background scraper thread"""
     scraper_thread = Thread(
         target=run_scraper_schedule,
-        name="concert-scraper-thread",  # Give it a recognizable name
+        name="concert-scraper-thread",
         daemon=True
     )
     scraper_thread.start()
