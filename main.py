@@ -68,12 +68,16 @@ logging.getLogger('werkzeug').setLevel(logging.WARNING)
 def kill_existing_scrapers():
     """Kill any existing scraper threads and processes"""
     try:
-        # Kill all Python processes that might be running scrapers
+        # Get the current process and its parent
         current_pid = os.getpid()
+        current_process = psutil.Process(current_pid)
+        parent_pid = current_process.parent().pid if current_process.parent() else None
+        
+        # Kill only other Python processes running scrapers
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
-                # Skip the current process
-                if proc.pid == current_pid:
+                # Skip the current process and its parent
+                if proc.pid in (current_pid, parent_pid):
                     continue
                     
                 # Check if it's a Python process
