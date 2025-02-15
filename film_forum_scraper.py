@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import logging
+from collections import defaultdict
 
 def scrape_film_forum():
     """Scrape Film Forum's Now Playing schedule"""
@@ -17,7 +18,13 @@ def scrape_film_forum():
         response.raise_for_status()
         
         soup = BeautifulSoup(response.text, "html.parser")
-        results = []
+        
+        # Use defaultdict to collect showtimes for each film on each date
+        film_schedule = defaultdict(lambda: defaultdict(lambda: {
+            'times': [],
+            'ticket_link': '',
+            'special_notes': ''
+        }))
         
         # Get today's date
         today = datetime.today().date()
@@ -84,15 +91,10 @@ def scrape_film_forum():
                                     
                                 time_formatted = f"{hour:02d}:{minute:02d}"
                                 
-                                # Create event entry
-                                event = {
-                                    "artist": film_title,
-                                    "date": date_for_tab,
-                                    "time": time_formatted,
-                                    "ticket_link": ticket_link,
-                                    "special_notes": special_notes
-                                }
-                                results.append(event)
+                                # Add to film schedule
+                                film_schedule[film_title][date_for_tab]['times'].append(time_formatted)
+                                film_schedule[film_title][date_for_tab]['ticket_link'] = ticket_link
+                                film_schedule[film_title][date_for_tab]['special_notes'] = special_notes
                                 
                             except Exception as e:
                                 logging.error(f"Error parsing time '{raw_time}': {e}")
@@ -105,8 +107,22 @@ def scrape_film_forum():
             except Exception as e:
                 logging.error(f"Error processing tab for day {i}: {e}")
                 continue
+        
+        # Convert the nested defaultdict to list of events
+        results = []
+        for film_title, dates in film_schedule.items():
+            for date, info in dates.items():
+                if info['times']:  # Only add if there are showtimes
+                    event = {
+                        "artist": film_title,
+                        "date": date,
+                        "times": sorted(info['times']),  # Sort times chronologically
+                        "ticket_link": info['ticket_link'],
+                        "special_notes": info['special_notes']
+                    }
+                    results.append(event)
                 
-        logging.info(f"Found {len(results)} showtimes at Film Forum")
+        logging.info(f"Found {len(results)} film showings at Film Forum")
         return results
         
     except requests.RequestException as e:
