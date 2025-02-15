@@ -1,47 +1,41 @@
 import re
 import requests
-from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-from dateutil import parser as dateparser
-import calendar
+from datetime import datetime
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-def parse_date_range(date_range_str, default_year):
-    """Parse a date range string into start and end dates."""
-    norm = date_range_str.replace("–", "-").replace("—", "-").strip()
-    parts = norm.split("-")
-    start_str = parts[0].strip()
-    end_str = parts[1].strip() if len(parts) > 1 else start_str
+def parse_date_range(date_text):
+    """Parse date range like 'February 11 - February 16' into start and end dates"""
+    current_year = datetime.now().year
+    
+    # Split on various dash types
+    parts = re.split(r'[-–—]', date_text)
+    if len(parts) == 2:
+        start_str = parts[0].strip()
+        end_str = parts[1].strip()
+    else:
+        start_str = date_text.strip()
+        end_str = start_str
     
     try:
-        start_date = dateparser.parse(f"{start_str} {default_year}")
-    except Exception:
-        start_date = None
-
-    if re.search(r"[A-Za-z]", end_str):
-        try:
-            end_date = dateparser.parse(f"{end_str} {default_year}")
-        except Exception:
-            end_date = None
-    else:
-        try:
-            month = start_date.strftime("%B")
-            end_date = dateparser.parse(f"{month} {end_str} {default_year}")
-        except Exception:
-            end_date = None
-
-    return start_date, end_date
-
-def daterange(start_date, end_date):
-    """Generate dates between start_date and end_date."""
-    for n in range((end_date - start_date).days + 1):
-        yield start_date + timedelta(n)
+        start_date = datetime.strptime(f"{start_str} {current_year}", "%B %d %Y")
+        end_date = datetime.strptime(f"{end_str} {current_year}", "%B %d %Y")
+        
+        # If dates are in the past, assume next year
+        if start_date < datetime.now():
+            start_date = datetime.strptime(f"{start_str} {current_year + 1}", "%B %d %Y")
+            end_date = datetime.strptime(f"{end_str} {current_year + 1}", "%B %d %Y")
+            
+        return start_date, end_date
+    except Exception as e:
+        logging.error(f"Error parsing dates '{date_text}': {e}")
+        return None, None
 
 def scrape_vanguard():
     """Scrape the Village Vanguard website for events."""
-    url = "https://villagevanguard.com/"
+    url = "https://villagevanguard.com"
     logging.info("Fetching Village Vanguard calendar")
     
     try:
@@ -49,29 +43,67 @@ def scrape_vanguard():
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         
-        # Find the container with the events
-        article = soup.find("article", id="upcoming")
-        if not article:
-            logging.error("Could not find the 'upcoming' article")
-            return []
-            
-        ul = article.find("ul")
-        if not ul:
-            logging.error("Could not locate the events list")
-            return []
-            
         events = []
-        current_year = datetime.now().year
         
-        # Iterate over each event
-        for li in ul.find_all("li", recursive=False):
+        # Find all event listings
+        event_listings = soup.find_all("div", class_="event-listing")
+        if not event_listings:
+            logging.error("No event listings found")
+            return []
+            
+        for listing in event_listings:
             try:
-                # ... processing code ...
-                events.append(event)
-                logging.debug(f"Extracted: {artist} on {date_formatted}")
+                # Get event title
+                title = listing.find("h2")
+                if not title:
+                    continue
+                artist = title.text.strip()
+                
+                # Get date range
+                date_h3 = listing.find("h3")
+                if not date_h3 or "event-tagline" in date_h3.get("class", []):
+                    continue
+                    
+                date_text = date_h3.text.strip()
+                start_date, end_date = parse_date_range(date_text)
+                if not start_date or not end_date:
+                    continue
+                
+                # Get ticket link
+                ticket_link = ""
+                ticket_btn = listing.find("a", class_="btn-primary")
+                if ticket_btn:
+                    ticket_link = ticket_btn["href"]
+                
+                # Get band members from event description
+                band_members = []
+                desc = listing.find("div", class_="event-short-description")
+                if desc:
+                    for member in desc.find_all("h4"):
+                        if member.find("strong"):
+                            name = member.find("strong").text.strip()
+                            role = member.text.replace(name, "").strip(" -")
+                            band_members.append(f"{name} ({role})")
+                
+                special_notes = "Band members: " + ", ".join(band_members) if band_members else ""
+                
+                # Create an event for each date in the range
+                current = start_date
+                while current <= end_date:
+                    event = {
+                        "artist": artist,
+                        "date": current.strftime("%Y-%m-%d"),
+                        "time": "8:00 PM",  # Default time for first set
+                        "ticket_link": ticket_link,
+                        "special_notes": special_notes
+                    }
+                    events.append(event)
+                    current = current.replace(day=current.day + 1)
+                    
+                logging.debug(f"Extracted: {artist} from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
                 
             except Exception as e:
-                logging.error(f"Error processing event: {e}")
+                logging.error(f"Error processing event listing: {e}")
                 continue
                 
         logging.info(f"Found {len(events)} events")
