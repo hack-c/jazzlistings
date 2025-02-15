@@ -227,78 +227,61 @@ def process_venue(venue_info, session):
     venue_name = venue_info['name']
     venue_url = venue_info['url']
     
-    # Check if venue exists and was recently scraped
-    venue = session.query(Venue).filter_by(name=venue_name).first()
-    if venue and venue.last_scraped:
-        now = datetime.now(pytz.UTC)
-        venue_last_scraped = venue.last_scraped.replace(tzinfo=pytz.UTC)
-        time_since_scrape = now - venue_last_scraped
-        
-        # Check if venue has any upcoming concerts
-        has_concerts = session.query(Concert).join(Venue).filter(
-            Venue.name == venue_name,
-            Concert.date >= datetime.now().date()
-        ).first() is not None
-        
-        # Skip only if recently scraped AND has upcoming concerts
-        if time_since_scrape < timedelta(hours=24) and has_concerts:
-            logging.info(f"Skipping {venue_name} - scraped {time_since_scrape.total_seconds()/3600:.1f}h ago with concerts")
-            return
-        elif not has_concerts:
-            logging.info(f"Processing {venue_name} - no upcoming concerts")
-        else:
-            logging.info(f"Processing {venue_name} - last scrape {time_since_scrape.total_seconds()/3600:.1f}h ago")
-    else:
-        logging.info(f"Processing {venue_name} - new venue")
-    
-    # Add minimum delay between requests
-    time.sleep(random.uniform(6, 8))
-    
     try:
-        # Use special scrapers for specific venues
-        if venue_name == 'Close Up':
+        # Get or create venue
+        venue = get_or_create_venue(session, venue_info)
+        
+        # Check for existing concerts
+        existing_concerts = check_existing_concerts(session, venue_name)
+        if existing_concerts:
+            logging.info(f"Found {len(existing_concerts)} existing concerts for {venue_name}")
+            return
+            
+        logging.info(f"Processing {venue_name} - new venue")
+        
+        # Try custom scraper first if available
+        concert_data = []
+        if has_custom_scraper(venue_name):
             logging.info(f"Using custom scraper for {venue_name}")
-            from closeup_scraper import scrape_closeup
-            concert_data_list = scrape_closeup()
-        elif venue_name == 'Village Vanguard':
-            logging.info(f"Using custom scraper for {venue_name}")
-            from vanguard_scraper import scrape_vanguard
-            concert_data_list = scrape_vanguard()
-        elif venue_name == 'Knockdown Center':
-            logging.info(f"Using custom scraper for {venue_name}")
-            from knockdown_scraper import scrape_knockdown
-            concert_data_list = scrape_knockdown()
-        elif 'ra.co' in venue_url:
-            logging.info(f"Using RA scraper for {venue_name}")
-            from ra_scraper import scrape_ra
-            concert_data_list = scrape_ra(venue_url)
+            concert_data = use_custom_scraper(venue_name)
         else:
+            # Use Firecrawl as fallback
             logging.info(f"Using Firecrawl for {venue_name}")
-            crawler = Crawler()
-            markdown_content = scrape_with_retry(crawler, venue_url, venue_name)
-            if not markdown_content:
-                logging.error(f"Failed to scrape {venue_name}")
+            try:
+                concert_data = use_firecrawl(venue_url)
+            except Exception as e:
+                if "rate limit" in str(e).lower():
+                    logging.error("Firecrawl rate limit detected - killing scraper process")
+                    # Kill the current process
+                    os.kill(os.getpid(), signal.SIGTERM)
+                else:
+                    logging.error(f"Error using Firecrawl: {e}")
                 return
-            concert_data_list = parse_markdown(markdown_content, venue_info)
-            
-        if concert_data_list:
-            logging.info(f"Found {len(concert_data_list)} concerts for {venue_name}")
-            for concert in concert_data_list:
-                logging.info(f"  {venue_name}: {concert['artist']} on {concert['date']}")
-            
-            store_concert_data(session, concert_data_list, venue_info)
-            if venue:
-                venue.last_scraped = datetime.now(pytz.UTC)
-                session.commit()
-        else:
+        
+        if not concert_data:
             logging.info(f"No concerts found for {venue_name}")
+            return
             
+        # Store concert data
+        store_concert_data(session, concert_data, venue_info)
+        
     except Exception as e:
         logging.error(f"Error processing {venue_name}: {e}")
 
+def is_credit_limit_error(error_msg):
+    """Check if the error is due to insufficient Firecrawl credits"""
+    credit_limit_indicators = [
+        "insufficient credits",
+        "payment required",
+        "upgrade your plan",
+        "for more credits"
+    ]
+    error_msg = error_msg.lower()
+    return any(indicator in error_msg for indicator in credit_limit_indicators)
+
 @retry(
     stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=10, min=10, max=120),  # Increased delays
+    wait=wait_exponential(multiplier=10, min=10, max=120),
     reraise=True
 )
 def scrape_with_retry(crawler, url, venue_name):
@@ -306,11 +289,23 @@ def scrape_with_retry(crawler, url, venue_name):
     try:
         return crawler.scrape_venue(url)
     except Exception as e:
-        if "429" in str(e):  # Rate limit error
-            print(f"Rate limit hit for {venue_name}, backing off...")
-            # Add longer delay on rate limit
+        error_msg = str(e)
+        if "429" in error_msg:  # Rate limit error
+            logging.info(f"Rate limit hit for {venue_name}, backing off...")
             time.sleep(random.uniform(15, 20))
+        elif is_credit_limit_error(error_msg):
+            logging.error("Firecrawl credit limit reached - killing scraper process")
+            os.kill(os.getpid(), signal.SIGTERM)
+            return None  # This won't actually execute due to the kill
         raise
+
+def use_firecrawl(venue_url):
+    """Use Firecrawl to scrape a venue"""
+    crawler = Crawler()
+    markdown_content = scrape_with_retry(crawler, venue_url, venue_name)
+    if not markdown_content:
+        return []
+    return parse_markdown(markdown_content, venue_info)
 
 def calculate_scrape_params(venue_count):
     """Calculate scraping parameters based on rate limits
