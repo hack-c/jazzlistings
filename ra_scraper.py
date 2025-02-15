@@ -6,8 +6,6 @@ import logging
 import time
 import random
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-
 def scrape_ra(url):
     """Scrape event data from RA"""
     try:

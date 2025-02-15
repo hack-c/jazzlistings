@@ -50,19 +50,31 @@ print(f"SPOTIFY_CLIENT_SECRET: {'set' if os.getenv('SPOTIFY_CLIENT_SECRET') else
 print(f"SPOTIFY_REDIRECT_URI: {os.getenv('SPOTIFY_REDIRECT_URI')}")
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
-# Reduce SQLAlchemy logging noise
+# Set SQLAlchemy logging to ERROR only
+logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
 logging.getLogger('sqlalchemy.engine').setLevel(logging.ERROR)
 logging.getLogger('sqlalchemy.pool').setLevel(logging.ERROR)
 logging.getLogger('sqlalchemy.orm').setLevel(logging.ERROR)
 logging.getLogger('sqlalchemy.dialects').setLevel(logging.ERROR)
-logging.getLogger('sqlalchemy.engine.base').setLevel(logging.ERROR)
 
-# Optional: Disable other common noisy loggers
+# Disable propagation to prevent duplicate logs
+logging.getLogger('sqlalchemy.engine.base.Engine').propagate = False
+
+# Optional: Keep other noisy loggers quiet
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
+
+# Add this to prevent duplicate logging
+logging.getLogger('sqlalchemy.engine.base.Engine').propagate = False
 
 # Add at the very start of the file, right after imports
 def kill_existing_scrapers():
@@ -344,6 +356,10 @@ def main():
     # List of venue websites to crawl
     venues = [
         {'name': 'Mansions', 'url': 'https://ra.co/clubs/197275', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': 'Close Up', 
+         'url': 'https://www.closeupnyc.com/calendar', 
+         'default_times': ['7:00 PM', '9:00 PM']
+        },
         {'name': 'Knockdown Center', 'url': 'https://knockdown.center/upcoming/', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
         {'name': 'Village Vanguard', 'url': 'https://villagevanguard.com', 'default_times': ['8:00 PM', '10:00 PM']},
         {'name': 'Jupiter Disco', 'url': 'https://ra.co/clubs/128789', 'default_times': ['Daily 10:00 PM - 4:00 AM']},
@@ -400,12 +416,7 @@ def main():
         {'name': 'The Appel Room', 'url': 'https://www.lincolncenter.org/venue/the-appel-room/v/calendar', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'Symphony Space', 'url': 'https://www.symphonyspace.org/events', 'default_times': ['7:00 PM', '9:00 PM']},
         {'name': 'Le Poisson Rouge', 'url': 'https://www.lpr.com/', 'default_times': ['7:00 PM', '9:30 PM']},
-        {'name': 'Close Up', 
-         'url': 'https://www.closeupnyc.com/calendar', 
-         'default_times': ['7:00 PM', '9:00 PM'],
-         'neighborhood': 'Lower East Side',
-         'genres': ['Jazz']
-        },
+        
     ]
     
     # Calculate scraping parameters
