@@ -416,7 +416,12 @@ def main():
         {'name': 'The Appel Room', 'url': 'https://www.lincolncenter.org/venue/the-appel-room/v/calendar', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'Symphony Space', 'url': 'https://www.symphonyspace.org/events', 'default_times': ['7:00 PM', '9:00 PM']},
         {'name': 'Le Poisson Rouge', 'url': 'https://www.lpr.com/', 'default_times': ['7:00 PM', '9:30 PM']},
-        
+        {'name': 'IFC Center',
+         'url': 'https://www.ifccenter.com/',
+         'default_times': [],  # Movies have variable times
+         'neighborhood': 'Greenwich Village',
+         'genres': ['Movies']
+        },
     ]
     
     # Calculate scraping parameters
@@ -780,7 +785,8 @@ def has_custom_scraper(venue_name, venue_url):
     custom_scrapers = {
         'Close Up': True,
         'Village Vanguard': True,
-        'Knockdown Center': True
+        'Knockdown Center': True,
+        'IFC Center': True  # Add IFC Center
     }
     return custom_scrapers.get(venue_name, False) or 'ra.co' in venue_url
 
@@ -801,6 +807,9 @@ def use_custom_scraper(venue_name, venue_url):
     elif venue_name == 'Knockdown Center':
         from knockdown_scraper import scrape_knockdown
         return scrape_knockdown()
+    elif venue_name == 'IFC Center':  # Add IFC Center
+        from ifc_scraper import scrape_ifc
+        return scrape_ifc()
     return []
 
 if __name__ == '__main__':
