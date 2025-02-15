@@ -355,6 +355,24 @@ def main():
     
     # List of venue websites to crawl
     venues = [
+        {'name': 'IFC Center',
+         'url': 'https://www.ifccenter.com/',
+         'default_times': [],  # Movies have variable times
+         'neighborhood': 'Greenwich Village',
+         'genres': ['Movies']
+        },
+        {'name': 'Film Forum',  # Add Film Forum
+         'url': 'https://filmforum.org/now_playing',
+         'default_times': [],  # Movies have variable times
+         'neighborhood': 'Greenwich Village',
+         'genres': ['Movies']
+        },
+        {'name': 'Quad Cinema',  # Add Quad Cinema
+         'url': 'https://quadcinema.com',
+         'default_times': [],  # Movies have variable times
+         'neighborhood': 'Greenwich Village',
+         'genres': ['Movies']
+        },
         {'name': 'Mansions', 'url': 'https://ra.co/clubs/197275', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
         {'name': 'Close Up', 
          'url': 'https://www.closeupnyc.com/calendar', 
@@ -416,24 +434,7 @@ def main():
         {'name': 'The Appel Room', 'url': 'https://www.lincolncenter.org/venue/the-appel-room/v/calendar', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'Symphony Space', 'url': 'https://www.symphonyspace.org/events', 'default_times': ['7:00 PM', '9:00 PM']},
         {'name': 'Le Poisson Rouge', 'url': 'https://www.lpr.com/', 'default_times': ['7:00 PM', '9:30 PM']},
-        {'name': 'IFC Center',
-         'url': 'https://www.ifccenter.com/',
-         'default_times': [],  # Movies have variable times
-         'neighborhood': 'Greenwich Village',
-         'genres': ['Movies']
-        },
-        {'name': 'Film Forum',  # Add Film Forum
-         'url': 'https://filmforum.org/now_playing',
-         'default_times': [],  # Movies have variable times
-         'neighborhood': 'Greenwich Village',
-         'genres': ['Movies']
-        },
-        {'name': 'Quad Cinema',  # Add Quad Cinema
-         'url': 'https://quadcinema.com',
-         'default_times': [],  # Movies have variable times
-         'neighborhood': 'Greenwich Village',
-         'genres': ['Movies']
-        },
+        {'name': 'Film at Lincoln Center', 'url': 'https://www.filmlinc.org/', 'default_times': ['7:00 PM', '9:30 PM']}
     ]
     
     # Calculate scraping parameters
@@ -800,7 +801,8 @@ def has_custom_scraper(venue_name, venue_url):
         'Knockdown Center': True,
         'IFC Center': True,
         'Film Forum': True,
-        'Quad Cinema': True  # Add Quad Cinema
+        'Quad Cinema': True,
+        'Film at Lincoln Center': True  # Add Film at Lincoln Center
     }
     return custom_scrapers.get(venue_name, False) or 'ra.co' in venue_url
 
@@ -827,9 +829,12 @@ def use_custom_scraper(venue_name, venue_url):
     elif venue_name == 'Film Forum':
         from film_forum_scraper import scrape_film_forum
         return scrape_film_forum()
-    elif venue_name == 'Quad Cinema':  # Add Quad Cinema
+    elif venue_name == 'Quad Cinema':
         from quad_scraper import scrape_quad
         return scrape_quad()
+    elif venue_name == 'Film at Lincoln Center':  # Add Film at Lincoln Center
+        from lincoln_scraper import scrape_lincoln
+        return scrape_lincoln()
     return []
 
 if __name__ == '__main__':

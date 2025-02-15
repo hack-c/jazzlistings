@@ -27,6 +27,10 @@ def upgrade():
                 'neighborhood': 'Greenwich Village',
                 'genres': ['Movies']
             },
+            'Film at Lincoln Center': {
+                'neighborhood': 'Upper West Side',
+                'genres': ['Movies']
+            },
             
             # Clubs (Electronic/Dance)
             'Mansions': {
