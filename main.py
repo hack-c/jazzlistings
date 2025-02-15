@@ -723,6 +723,61 @@ def generate_calendar_links(concert, venue_name, artist_names):
         'ical': f"data:text/calendar;charset=utf8,{quote(ical_data)}"
     }
 
+def get_or_create_venue(session, venue_info):
+    """Get existing venue or create a new one"""
+    venue = session.query(Venue).filter_by(name=venue_info['name']).first()
+    if not venue:
+        venue = Venue(
+            name=venue_info['name'],
+            website_url=venue_info['url'],
+            neighborhood=venue_info.get('neighborhood', ''),
+            genres=venue_info.get('genres', [])
+        )
+        session.add(venue)
+        session.commit()
+    return venue
+
+def check_existing_concerts(session, venue_name):
+    """Check if venue has any upcoming concerts"""
+    now = datetime.now(pytz.UTC)
+    venue = session.query(Venue).filter_by(name=venue_name).first()
+    if venue and venue.last_scraped:
+        venue_last_scraped = venue.last_scraped.replace(tzinfo=pytz.UTC)
+        time_since_scrape = now - venue_last_scraped
+        
+        # Check if venue has any upcoming concerts
+        upcoming_concerts = session.query(Concert).join(Venue).filter(
+            Venue.name == venue_name,
+            Concert.date >= datetime.now().date()
+        ).all()
+        
+        # Return concerts if recently scraped AND has upcoming concerts
+        if time_since_scrape < timedelta(hours=24) and upcoming_concerts:
+            return upcoming_concerts
+    return []
+
+def has_custom_scraper(venue_name):
+    """Check if venue has a custom scraper"""
+    custom_scrapers = {
+        'Close Up': True,
+        'Village Vanguard': True,
+        'Knockdown Center': True
+    }
+    return custom_scrapers.get(venue_name, False)
+
+def use_custom_scraper(venue_name):
+    """Use the appropriate custom scraper for a venue"""
+    if venue_name == 'Close Up':
+        from closeup_scraper import scrape_closeup
+        return scrape_closeup()
+    elif venue_name == 'Village Vanguard':
+        from vanguard_scraper import scrape_vanguard
+        return scrape_vanguard()
+    elif venue_name == 'Knockdown Center':
+        from knockdown_scraper import scrape_knockdown
+        return scrape_knockdown()
+    return []
+
 if __name__ == '__main__':
     import sys
     from werkzeug.serving import run_simple
