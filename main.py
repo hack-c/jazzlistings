@@ -422,6 +422,18 @@ def main():
          'neighborhood': 'Greenwich Village',
          'genres': ['Movies']
         },
+        {'name': 'Film Forum',  # Add Film Forum
+         'url': 'https://filmforum.org/now_playing',
+         'default_times': [],  # Movies have variable times
+         'neighborhood': 'Greenwich Village',
+         'genres': ['Movies']
+        },
+        {'name': 'Quad Cinema',  # Add Quad Cinema
+         'url': 'https://quadcinema.com',
+         'default_times': [],  # Movies have variable times
+         'neighborhood': 'Greenwich Village',
+         'genres': ['Movies']
+        },
     ]
     
     # Calculate scraping parameters
@@ -786,7 +798,9 @@ def has_custom_scraper(venue_name, venue_url):
         'Close Up': True,
         'Village Vanguard': True,
         'Knockdown Center': True,
-        'IFC Center': True  # Add IFC Center
+        'IFC Center': True,
+        'Film Forum': True,
+        'Quad Cinema': True  # Add Quad Cinema
     }
     return custom_scrapers.get(venue_name, False) or 'ra.co' in venue_url
 
@@ -807,9 +821,15 @@ def use_custom_scraper(venue_name, venue_url):
     elif venue_name == 'Knockdown Center':
         from knockdown_scraper import scrape_knockdown
         return scrape_knockdown()
-    elif venue_name == 'IFC Center':  # Add IFC Center
+    elif venue_name == 'IFC Center':
         from ifc_scraper import scrape_ifc
         return scrape_ifc()
+    elif venue_name == 'Film Forum':
+        from film_forum_scraper import scrape_film_forum
+        return scrape_film_forum()
+    elif venue_name == 'Quad Cinema':  # Add Quad Cinema
+        from quad_scraper import scrape_quad
+        return scrape_quad()
     return []
 
 if __name__ == '__main__':
