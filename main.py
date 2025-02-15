@@ -24,6 +24,9 @@ from urllib.parse import urlencode, quote
 from ics import Calendar, Event
 import pytz
 import logging
+import threading
+import signal
+import psutil
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -53,6 +56,28 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
 logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
 logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
+
+# At the start of the app, before creating any new threads
+def kill_existing_scrapers():
+    """Kill any existing scraper threads from previous deployments"""
+    current_process = psutil.Process(os.getpid())
+    
+    # Get all threads in the current process
+    for thread in threading.enumerate():
+        if thread != threading.current_thread() and "scraper" in thread.name.lower():
+            logging.info(f"Stopping existing scraper thread: {thread.name}")
+            thread.join(timeout=1.0)  # Give thread 1 second to clean up
+    
+    # Kill any child processes that might be running scrapers
+    for child in current_process.children(recursive=True):
+        try:
+            logging.info(f"Terminating child process: {child.pid}")
+            child.terminate()
+            child.wait(timeout=1.0)
+        except psutil.TimeoutExpired:
+            child.kill()  # Force kill if it doesn't terminate gracefully
+        except psutil.NoSuchProcess:
+            pass  # Process already terminated
 
 @app.route('/')
 def index():
@@ -501,31 +526,13 @@ def store_concert_data(session, concert_data_list, venue_info):
             session.rollback()
             continue
 
-def start_scraper():
-    """Run the scraper in a background thread"""
-    def scheduled_job():
-        print(f"\nRunning scheduled scraper at {datetime.now()}")
-        try:
-            # Call main() instead of creating a Crawler instance
-            main()
-            print("Scheduled scraper completed successfully")
-        except Exception as e:
-            print(f"Error in scheduled scraper: {e}")
-
-    def run_scheduler():
-        # Schedule the job to run daily at 4 AM
-        schedule.every().day.at("04:00").do(scheduled_job)
-        
-        # Run the scraper immediately on startup
-        print("Running initial scraper...")
-        scheduled_job()
-        
-        while True:
-            schedule.run_pending()
-            time.sleep(60)  # Check every minute
-
-    print("Starting scraper scheduler...")
-    scraper_thread = Thread(target=run_scheduler, daemon=True)
+def start_scraper_thread():
+    """Start the background scraper thread"""
+    scraper_thread = Thread(
+        target=run_scraper_schedule,
+        name="concert-scraper-thread",  # Give it a recognizable name
+        daemon=True
+    )
     scraper_thread.start()
     return scraper_thread
 
@@ -538,7 +545,7 @@ def initialize_app():
     clean_placeholder_artists()
     
     # Start the scraper thread
-    scraper_thread = start_scraper()
+    scraper_thread = start_scraper_thread()
     atexit.register(lambda: scraper_thread.join(timeout=1.0))
 
 def normalize_artist_name(name):
@@ -704,7 +711,7 @@ if __name__ == '__main__':
     # Initialize based on arguments
     init_db()
     if run_scraper:
-        scraper_thread = start_scraper()
+        scraper_thread = start_scraper_thread()
         atexit.register(lambda: scraper_thread.join(timeout=1.0))
     
     # Run with SSL
