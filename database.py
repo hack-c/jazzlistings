@@ -114,6 +114,50 @@ def init_db():
             if 'genres' not in columns:
                 db.execute(text("ALTER TABLE venues ADD COLUMN genres JSON"))
             
+            # Clean up placeholder events
+            try:
+                db.execute(text("""
+                    DELETE FROM concerts 
+                    WHERE id IN (
+                        SELECT c.id
+                        FROM concerts c
+                        JOIN concert_artists ca ON c.id = ca.concert_id
+                        JOIN artists a ON ca.artist_id = a.id
+                        WHERE a.name = 'Artist Name'
+                        OR a.name = ''
+                        OR a.name IS NULL
+                    )
+                """))
+                db.commit()
+            except Exception as e:
+                print(f"Error cleaning up placeholder events: {e}")
+                db.rollback()
+
+            # Remove duplicate events (same venue, date, time, and artists)
+            try:
+                db.execute(text("""
+                    DELETE FROM concerts 
+                    WHERE id IN (
+                        SELECT c1.id
+                        FROM concerts c1
+                        JOIN concert_times ct1 ON c1.id = ct1.concert_id
+                        JOIN concert_artists ca1 ON c1.id = ca1.concert_id
+                        JOIN artists a1 ON ca1.artist_id = a1.id
+                        JOIN concerts c2 ON c1.venue_id = c2.venue_id 
+                            AND c1.date = c2.date
+                        JOIN concert_times ct2 ON c2.id = ct2.concert_id
+                            AND ct1.time = ct2.time
+                        JOIN concert_artists ca2 ON c2.id = ca2.concert_id
+                        JOIN artists a2 ON ca2.artist_id = a2.id
+                            AND a1.name = a2.name
+                        WHERE c1.id > c2.id
+                    )
+                """))
+                db.commit()
+            except Exception as e:
+                print(f"Error removing duplicate events: {e}")
+                db.rollback()
+
             # Update venues one at a time to avoid locks
             for venue in db.query(Venue).all():
                 try:
