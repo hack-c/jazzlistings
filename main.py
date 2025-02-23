@@ -346,10 +346,6 @@ def main():
     
     # List of venue websites to crawl
     venues = [
-        {'name': 'Village Vanguard', 
-         'url': 'https://villagevanguard.com', 
-         'default_times': ['20:00', '22:00']
-        },
         {'name': 'Bar Bayeux', 'url': 'https://www.barbayeux.com/jazz/', 'default_times': ['8:00 PM', '9:30 PM']},
         {'name': 'Mansions', 
          'url': 'https://ra.co/clubs/197275', 
@@ -390,6 +386,10 @@ def main():
         {'name': 'The Sultan Room', 
          'url': 'https://www.thesultanroom.com/calendar', 
          'default_times': ['20:00']
+        },
+        {'name': 'Village Vanguard', 
+         'url': 'https://villagevanguard.com', 
+         'default_times': ['20:00', '22:00']
         },
         {'name': 'Knockdown Center', 
          'url': 'https://knockdown.center/upcoming/', 
