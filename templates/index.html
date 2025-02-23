@@ -4,11 +4,11 @@
 <div class="concerts">
     <h1>Upcoming Shows</h1>
     
-    {% for date, concerts in concerts_by_date.items() %}
-    <div class="date-section">
-        <h2>{{ date.strftime('%A, %B %d, %Y') }}</h2>
+    {% for neighborhood in sorted_neighborhoods %}
+    <div class="neighborhood-section">
+        <h2>{{ neighborhood }}</h2>
         
-        {% for concert in concerts %}
+        {% for concert in concerts_by_neighborhood[neighborhood] %}
         <div class="concert-card {% if concert.spotify_score > 0 %}spotify-match{% endif %}">
             <div class="venue">{{ concert.venue_name }}</div>
             <div class="artists">

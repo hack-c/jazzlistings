@@ -149,7 +149,6 @@ def index():
             if user_preferences['neighborhoods']:
                 query = query.join(Venue).filter(Venue.neighborhood.in_(user_preferences['neighborhoods']))
             if user_preferences['genres']:
-                # Filter by venue genres
                 query = query.join(Venue).filter(Venue.genres.contains(user_preferences['genres']))
         
         # Apply date filters
@@ -159,71 +158,54 @@ def index():
             (Concert.date > today) | 
             ((Concert.date == today) & 
              (Concert.times.any(ConcertTime.time >= now.time())))
-        ).order_by(Concert.date)
+        )
         
+        # First get all concerts
         concerts = query.all()
         
-        # Get user's Spotify data if logged in
-        spotify_artists = set()
-        if 'user_id' in session:
-            user = db.query(User).filter_by(id=session['user_id']).first()
-            if user and user.spotify_token:
-                try:
-                    print("\nFetching Spotify data...")
-                    sp = spotipy.Spotify(auth=user.spotify_token['access_token'])
-                    
-                    # Get user's saved tracks
-                    print("Fetching saved tracks...")
-                    saved_tracks = sp.current_user_saved_tracks(limit=50)
-                    for item in saved_tracks['items']:
-                        for artist in item['track']['artists']:
-                            spotify_artists.add(artist['name'].lower())
-                    
-                    # Get user's top artists
-                    print("Fetching top artists...")
-                    top_artists = sp.current_user_top_artists(limit=50)
-                    for artist in top_artists['items']:
-                        spotify_artists.add(artist['name'].lower())
-                    
-                    # Get user's playlists and their tracks
-                    print("Fetching playlist tracks...")
-                    playlists = sp.current_user_playlists(limit=50)
-                    for playlist in playlists['items']:
-                        if playlist['owner']['id'] == sp.me()['id']:
-                            tracks = sp.playlist_tracks(playlist['id'], limit=100)
-                            for item in tracks['items']:
-                                if item['track']:
-                                    for artist in item['track']['artists']:
-                                        spotify_artists.add(artist['name'].lower())
-                    
-                    print(f"Found {len(spotify_artists)} unique artists in Spotify library")
-                    print("Sample of Spotify artists:", list(spotify_artists)[:5])
-                except Exception as e:
-                    print(f"Error fetching Spotify data: {e}")
+        # Organize concerts by neighborhood
+        concerts_by_neighborhood = defaultdict(list)
         
-        # Group concerts and check for matches
-        concerts_by_date = defaultdict(list)
         for concert in concerts:
-            artist_names = [artist.name for artist in concert.artists]
-            calendar_links = generate_calendar_links(concert, concert.venue.name, artist_names)
+            # Get earliest time for sorting
+            earliest_time = min((t.time for t in concert.times), default=datetime_time(23, 59))
             
-            concerts_by_date[concert.date].append({
+            # Create concert dict with all needed info including earliest time
+            concert_dict = {
                 'venue_name': concert.venue.name,
                 'artists': concert.artists,
-                'times': concert.times,
+                'times': sorted(concert.times, key=lambda x: x.time),
                 'ticket_link': concert.ticket_link,
                 'special_notes': concert.special_notes,
-                'spotify_score': 0,  # existing spotify score logic
-                'calendar_links': calendar_links
-            })
+                'calendar_links': generate_calendar_links(
+                    concert,
+                    concert.venue.name,
+                    [artist.name for artist in concert.artists]
+                ),
+                'earliest_time': earliest_time,
+                'date': concert.date,
+                'spotify_score': 0  # You can keep your existing Spotify logic here
+            }
             
-        # Sort concerts within each date by Spotify relevance
-        for date in concerts_by_date:
-            concerts_by_date[date].sort(key=lambda x: x['spotify_score'], reverse=True)
+            # Add to appropriate neighborhood
+            neighborhood = concert.venue.neighborhood or 'Other'
+            concerts_by_neighborhood[neighborhood].append(concert_dict)
         
-        return render_template('index.html', 
-                             concerts_by_date=concerts_by_date,
-                             today=today)
+        # Sort concerts within each neighborhood by date and time
+        for neighborhood in concerts_by_neighborhood:
+            concerts_by_neighborhood[neighborhood].sort(
+                key=lambda x: (x['date'], x['earliest_time'])
+            )
+        
+        # Sort neighborhoods alphabetically
+        sorted_neighborhoods = sorted(concerts_by_neighborhood.keys())
+        
+        return render_template(
+            'index.html',
+            concerts_by_neighborhood=concerts_by_neighborhood,
+            sorted_neighborhoods=sorted_neighborhoods,
+            user=user if 'user_id' in session else None
+        )
     finally:
         db.close()
 
