@@ -321,6 +321,10 @@ def calculate_scrape_params(venue_count):
 
 def process_venue_batch(batch, session):
     """Process a batch of venues"""
+    # Skip if we're in the reloader process
+    if not os.environ.get('WERKZEUG_RUN_MAIN'):
+        return
+        
     logging.info(f"Processing batch of {len(batch)} venues")
     processed_venues = set()  # Track which venues we've processed
     
@@ -862,28 +866,33 @@ if __name__ == '__main__':
     from werkzeug.serving import run_simple
     from werkzeug.middleware.proxy_fix import ProxyFix
     
-    # Kill any existing scrapers first
-    kill_existing_scrapers()
+    # Only run scraper in the main process, not in the reloader
+    if not os.environ.get('WERKZEUG_RUN_MAIN'):
+        print("Starting in reloader process - skipping scraper")
+    else:
+        # Kill any existing scrapers first
+        kill_existing_scrapers()
+        
+        # Initialize based on arguments
+        init_db()
+        
+        # Parse command line arguments
+        run_scraper = True
+        if len(sys.argv) > 1:
+            if "no-scrape" in sys.argv:
+                run_scraper = False
+                logging.info("Starting web server without scraper")
+            elif "server" in sys.argv:
+                logging.info("Starting web server with scraper")
+        
+        if run_scraper:
+            # Kill scrapers again just to be sure
+            kill_existing_scrapers()
+            scraper_thread = start_scraper_thread()
+            atexit.register(lambda: scraper_thread.join(timeout=1.0))
     
     # Wrap the app to fix protocol headers
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
-    
-    # Parse command line arguments
-    run_scraper = True
-    if len(sys.argv) > 1:
-        if "no-scrape" in sys.argv:
-            run_scraper = False
-            logging.info("Starting web server without scraper")
-        elif "server" in sys.argv:
-            logging.info("Starting web server with scraper")
-    
-    # Initialize based on arguments
-    init_db()
-    if run_scraper:
-        # Kill scrapers again just to be sure
-        kill_existing_scrapers()
-        scraper_thread = start_scraper_thread()
-        atexit.register(lambda: scraper_thread.join(timeout=1.0))
     
     # Run with SSL
     run_simple('0.0.0.0', 5000, app,
