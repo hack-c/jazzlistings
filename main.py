@@ -326,12 +326,18 @@ def process_venue_batch(batch, session):
     
     for venue_info in batch:
         venue_name = venue_info['name']
+        
+        # Debug logging
+        logging.info(f"Processing venue: {venue_name}")
         if venue_name in processed_venues:
-            logging.debug(f"Skipping duplicate venue: {venue_name}")
+            logging.info(f"Already processed {venue_name} in this batch")
             continue
             
         process_venue(venue_info, session)
         processed_venues.add(venue_name)
+        
+        # Debug what's in the set
+        logging.debug(f"Processed venues in this batch: {processed_venues}")
         time.sleep(random.uniform(1, 3))  # Rate limiting
 
 def main():

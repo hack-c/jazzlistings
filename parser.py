@@ -18,74 +18,98 @@ class Parser:
         # Only log important parsing events and errors
 
 def parse_markdown(markdown_content, venue_info):
-    """Parse markdown content into structured concert data."""
+    """Parse markdown content into concert data"""
+    logger = logging.getLogger('concert_app')
+    logger.info(f"Parsing markdown for {venue_info['name']}")
+    
+    # Log the size of markdown content
+    logger.info(f"Markdown content size: {len(markdown_content)} bytes")
+    
+    # Log a preview of the markdown
+    preview = markdown_content[:500].replace('\n', ' ')
+    logger.debug(f"Markdown preview: {preview}...")
+    
     concerts = []
-    current_concert = None
+    current_concert = None  # Initialize current_concert
     
-    # Get default show times for this venue
-    default_times = venue_info.get('default_times', ['8:00 PM'])  # Fallback to 8 PM if not specified
-    
-    # Split content into lines for processing
-    lines = markdown_content.split('\n')
-    
-    for line in lines:
-        # Skip empty lines
-        if not line.strip():
-            continue
+    try:
+        # Get default show times for this venue
+        default_times = venue_info.get('default_times', ['8:00 PM'])  # Fallback to 8 PM if not specified
+        
+        # Split content into lines for processing
+        lines = markdown_content.split('\n')
+        
+        for line in lines:
+            # Skip empty lines
+            if not line.strip():
+                continue
             
-        # Check for date patterns
-        date_match = re.search(r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\s*(?:‑|-|–)\s*(?:(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+)?\d{1,2}', line)
-        if date_match:
-            if current_concert:
-                concerts.append(current_concert)
+            # Log line for debugging
+            logger.debug(f"Processing line: {line}")
             
-            date_str = date_match.group(0)
-            start_date, end_date = parse_date_range(date_str)
-            
-            current_concert = {
-                'dates': [start_date],  # We'll expand this for each date in the range
-                'artists': [],
-                'times': default_times.copy(),  # Use venue's default times
-                'ticket_link': None,
-                'price_range': None,
-                'special_notes': []
-            }
-            
-            # Create a concert entry for each date in the range
-            current_date = start_date
-            while current_date <= end_date:
-                concerts.append({
-                    'dates': [current_date],
-                    'artists': current_concert['artists'].copy(),
-                    'times': current_concert['times'],
-                    'ticket_link': current_concert['ticket_link'],
-                    'price_range': current_concert['price_range'],
-                    'special_notes': current_concert['special_notes'].copy()
-                })
-                current_date += timedelta(days=1)
-            
-            continue
-            
-        # Check for artist names (lines starting with ** or after ### that aren't dates)
-        if '**' in line or (line.startswith('###') and not re.search(r'(?:January|February|March|April|May|June|July|August|September|October|November|December)', line)):
-            artist_name = re.sub(r'[*#\s–-]', '', line).strip()
-            if artist_name and current_concert:
-                current_concert['artists'].append(artist_name)
+            # Check for date patterns
+            date_match = re.search(r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\s*(?:‑|-|–)\s*(?:(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+)?\d{1,2}', line)
+            if date_match:
+                # If we have a previous concert, add it to the list
+                if current_concert and current_concert.get('artists'):
+                    logger.debug(f"Adding concert: {current_concert}")
+                    concerts.append(current_concert)
                 
-        # Check for ticket links
-        if '[TICKETS]' in line:
-            ticket_match = re.search(r'\((.*?)\)', line)
-            if ticket_match and current_concert:
-                current_concert['ticket_link'] = ticket_match.group(1)
+                date_str = date_match.group(0)
+                logger.debug(f"Found date range: {date_str}")
+                start_date, end_date = parse_date_range(date_str)
                 
-        # Check for special notes (lines starting with >)
-        if line.startswith('>'):
+                # Create a concert entry for each date in the range
+                current_date = start_date
+                while current_date <= end_date:
+                    current_concert = {
+                        'date': current_date.strftime('%Y-%m-%d'),
+                        'artists': [],
+                        'times': default_times.copy(),  # Use venue's default times
+                        'ticket_link': None,
+                        'price_range': None,
+                        'special_notes': []
+                    }
+                    concerts.append(current_concert)
+                    current_date += timedelta(days=1)
+                
+                continue
+            
+            # Only process other fields if we have a current concert
             if current_concert:
-                current_concert['special_notes'].append(line.strip('> '))
+                # Check for artist names (lines starting with ** or after ### that aren't dates)
+                if ('**' in line or line.startswith('###')) and not re.search(r'(?:January|February|March|April|May|June|July|August|September|October|November|December)', line):
+                    artist_name = re.sub(r'[*#\s–-]', '', line).strip()
+                    if artist_name:
+                        logger.debug(f"Found artist: {artist_name}")
+                        current_concert['artists'].append(artist_name)
+                
+                # Check for ticket links
+                if '[TICKETS]' in line or 'Buy Tickets' in line:
+                    ticket_match = re.search(r'\((.*?)\)', line)
+                    if ticket_match:
+                        current_concert['ticket_link'] = ticket_match.group(1)
+                        logger.debug(f"Found ticket link: {current_concert['ticket_link']}")
+                
+                # Check for special notes (lines starting with >)
+                if line.startswith('>'):
+                    note = line.strip('> ')
+                    current_concert['special_notes'].append(note)
+                    logger.debug(f"Found special note: {note}")
 
-    # Add the last concert if exists
-    if current_concert:
-        concerts.append(current_concert)
+        # Add the last concert if it exists and has artists
+        if current_concert and current_concert.get('artists'):
+            logger.debug(f"Adding final concert: {current_concert}")
+            concerts.append(current_concert)
+        
+        # Log the results
+        logger.info(f"Found {len(concerts)} concerts for {venue_info['name']}")
+        if concerts:
+            logger.debug(f"First concert: {concerts[0]}")
+            
+    except Exception as e:
+        logger.error(f"Error parsing markdown for {venue_info['name']}: {e}")
+        logger.exception(e)  # This will log the full traceback
         
     return concerts
 
