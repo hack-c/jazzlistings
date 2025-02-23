@@ -93,8 +93,7 @@ class Crawler:
                 lambda d: d.execute_script('return document.readyState') == 'complete'
             )
             
-            # Wait additional time for dynamic content
-            time.sleep(5)
+            # Wait additional time for dynamic content   time.sleep(5)
             
             # Get the page source
             html_content = driver.page_source
@@ -225,6 +224,15 @@ class Crawler:
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--disable-infobars')
+        options.add_argument('--start-maximized')
+        options.add_argument('--window-size=1920,1080')
+        options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+        
+        # Add experimental options
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option('useAutomationExtension', False)
         
         try:
             driver = webdriver.Chrome(options=options)
@@ -235,6 +243,21 @@ class Crawler:
                 lambda d: d.execute_script('return document.readyState') == 'complete'
             )
             
+            # Wait for RA.co specific elements
+            if 'ra.co' in url:
+                time.sleep(5)  # Give dynamic content time to load
+                try:
+                    # Log the page title
+                    logger.info(f"Page title: {driver.title}")
+                    
+                    # Log any error messages that might be present
+                    error_elements = driver.find_elements_by_css_selector('.error-message, .error')
+                    if error_elements:
+                        for elem in error_elements:
+                            logger.warning(f"Found error element: {elem.text}")
+                except Exception as e:
+                    logger.warning(f"Error checking page elements: {e}")
+            
             html_content = driver.page_source
             
             # Convert to markdown
@@ -243,7 +266,10 @@ class Crawler:
             h.body_width = 0
             markdown = h.handle(html_content)
             
+            # Log content details
             logger.info(f"Chrome generated {len(markdown)} bytes of markdown")
+            logger.debug(f"Markdown preview: {markdown[:500]}")  # Log first 500 chars
+            
             return markdown
             
         except Exception as e:
