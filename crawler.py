@@ -68,34 +68,47 @@ class Crawler:
 
         try:
             from selenium.webdriver.firefox.service import Service
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support import expected_conditions as EC
+            
             service = Service(log_path=os.devnull)
             driver = webdriver.Firefox(options=options, service=service)
             
             logger.info(f"Fetching URL with Selenium: {url}")
             driver.get(url)
             
-            # Add a longer wait and check for specific elements
-            try:
-                WebDriverWait(driver, 30).until(
-                    lambda d: d.execute_script('return document.readyState') == 'complete'
-                )
-                # Give a little extra time for dynamic content
-                time.sleep(5)
-            except Exception as e:
-                logger.warning(f"Wait timeout: {e}")
+            # Wait for body to be present
+            WebDriverWait(driver, 30).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
             
+            # Wait for page load
+            WebDriverWait(driver, 30).until(
+                lambda d: d.execute_script('return document.readyState') == 'complete'
+            )
+            
+            # Wait additional time for dynamic content
+            time.sleep(5)
+            
+            # Get the page source
             html_content = driver.page_source
             
-            # Log the length of content received
-            logger.info(f"Received {len(html_content)} bytes of HTML")
+            # Log details about the content
+            content_length = len(html_content) if html_content else 0
+            logger.info(f"Received {content_length} bytes of HTML from {url}")
             
-            # Log a snippet of the content for debugging
-            preview = html_content[:200] if html_content else "No content"
-            logger.debug(f"Content preview: {preview}...")
+            if content_length < 100:  # Arbitrary small size check
+                logger.warning(f"Suspiciously small content size ({content_length} bytes) from {url}")
+                return None
+                
+            # Log a snippet for debugging
+            if html_content:
+                preview = html_content[:200].replace('\n', ' ')
+                logger.debug(f"Content preview: {preview}...")
             
             return html_content
         except Exception as e:
-            logger.error(f"Selenium error: {e}")
+            logger.error(f"Selenium error for {url}: {e}")
             raise
         finally:
             try:
