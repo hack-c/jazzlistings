@@ -64,20 +64,35 @@ class Crawler:
         # Add Firefox-specific options
         options.set_preference('browser.download.folderList', 2)
         options.set_preference('browser.download.manager.showWhenStarting', False)
-        # Suppress geckodriver version warnings
         options.set_preference('log.level', 'ERROR')
 
         try:
-            # Use Service class to configure geckodriver
             from selenium.webdriver.firefox.service import Service
-            service = Service(log_path=os.devnull)  # Suppress geckodriver logs
+            service = Service(log_path=os.devnull)
             driver = webdriver.Firefox(options=options, service=service)
             
+            logger.info(f"Fetching URL with Selenium: {url}")
             driver.get(url)
-            WebDriverWait(driver, 30).until(
-                lambda d: d.execute_script('return document.readyState') == 'complete'
-            )
+            
+            # Add a longer wait and check for specific elements
+            try:
+                WebDriverWait(driver, 30).until(
+                    lambda d: d.execute_script('return document.readyState') == 'complete'
+                )
+                # Give a little extra time for dynamic content
+                time.sleep(5)
+            except Exception as e:
+                logger.warning(f"Wait timeout: {e}")
+            
             html_content = driver.page_source
+            
+            # Log the length of content received
+            logger.info(f"Received {len(html_content)} bytes of HTML")
+            
+            # Log a snippet of the content for debugging
+            preview = html_content[:200] if html_content else "No content"
+            logger.debug(f"Content preview: {preview}...")
+            
             return html_content
         except Exception as e:
             logger.error(f"Selenium error: {e}")
@@ -121,6 +136,7 @@ class Crawler:
             scrape_result = self.app.scrape_url(url, params={'formats': ['markdown']})
             time.sleep(6)
             if 'markdown' in scrape_result:
+                logger.info("Successfully got content from Firecrawl")
                 return scrape_result['markdown']
         except Exception as e:
             if "Insufficient credits" in str(e):
@@ -145,10 +161,25 @@ class Crawler:
         else:
             try:
                 html_content = self.fetch_with_selenium(url)
+                if not html_content:
+                    logger.warning("No content received from Selenium")
+                    return None
+                
+                markdown = self.convert_html_to_markdown(html_content)
+                if not markdown.strip():
+                    logger.warning("Converted markdown is empty")
+                    return None
+                    
+                self.save_cache(cache_file, html_content.encode("utf-8"))
+                return markdown
             except Exception as e:
                 logger.warning(f"Selenium failed, trying Requests: {e}")
                 html_bytes, _ = self.fetch_with_requests(url)
                 html_content = html_bytes.decode("utf-8", errors="replace")
-            
-            self.save_cache(cache_file, html_content.encode("utf-8"))
-            return self.convert_html_to_markdown(html_content)
+                
+                if not html_content:
+                    logger.warning("No content received from Requests")
+                    return None
+                    
+                self.save_cache(cache_file, html_content.encode("utf-8"))
+                return self.convert_html_to_markdown(html_content)
