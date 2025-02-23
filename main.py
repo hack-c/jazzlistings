@@ -324,21 +324,26 @@ def process_venue_batch(batch, session):
     logging.info(f"Processing batch of {len(batch)} venues")
     processed_venues = set()  # Track which venues we've processed
     
-    for venue_info in batch:
-        venue_name = venue_info['name']
-        
-        # Debug logging
-        logging.info(f"Processing venue: {venue_name}")
-        if venue_name in processed_venues:
-            logging.info(f"Already processed {venue_name} in this batch")
-            continue
+    with ThreadPoolExecutor(max_workers=1) as executor:  # Process one at a time
+        for venue_info in batch:
+            venue_name = venue_info['name']
             
-        process_venue(venue_info, session)
-        processed_venues.add(venue_name)
-        
-        # Debug what's in the set
-        logging.debug(f"Processed venues in this batch: {processed_venues}")
-        time.sleep(random.uniform(1, 3))  # Rate limiting
+            # Skip if already processed
+            if venue_name in processed_venues:
+                logging.debug(f"Skipping already processed venue: {venue_name}")
+                continue
+                
+            try:
+                # Submit the task and wait for it to complete
+                future = executor.submit(process_venue, venue_info, session)
+                future.result()  # Wait for completion
+                processed_venues.add(venue_name)
+                logging.info(f"Completed processing {venue_name}")
+            except Exception as e:
+                logging.error(f"Error processing {venue_name}: {e}")
+            
+            # Rate limiting
+            time.sleep(random.uniform(1, 3))
 
 def main():
     """Main function that orchestrates the crawling, parsing, and storing of concert data."""
@@ -473,16 +478,7 @@ def main():
         batch = venues[i:i+params['batch_size']]
         print(f"\nProcessing batch {i//params['batch_size'] + 1} of {(len(venues) + params['batch_size'] - 1)//params['batch_size']}")
         
-        with ThreadPoolExecutor(max_workers=1) as executor:  # Process one at a time
-            for venue in batch:
-                future = executor.submit(process_venue, venue, session)
-                try:
-                    future.result()
-                    print(f"Completed processing {venue['name']}")
-                    # Add delay between requests
-                    time.sleep(params['request_delay'])
-                except Exception as e:
-                    print(f"Error processing {venue['name']}: {e}")
+        process_venue_batch(batch, session)
         
         # Add delay between batches
         if i + params['batch_size'] < len(venues):
