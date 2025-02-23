@@ -151,7 +151,8 @@ class Crawler:
             # First try Firecrawl
             logger.info("Attempting Firecrawl scrape")
             try:
-                markdown = self.use_firecrawl(url)
+                result = self.app.scrape_url(url, params={'formats': ['markdown']})
+                markdown = result['data']['markdown']
                 if markdown:
                     return markdown
             except Exception as e:
