@@ -153,7 +153,7 @@ class Crawler:
             try:
                 result = self.app.scrape_url(url, params={'formats': ['markdown']})
                 markdown = result['data']['markdown']
-                if markdown:
+                if markdown and len(markdown.strip()) > 1:
                     return markdown
             except Exception as e:
                 if "insufficient credits" in str(e).lower():
@@ -161,22 +161,28 @@ class Crawler:
                 else:
                     logger.error(f"Firecrawl error: {e}")
             
-            # If Firecrawl fails, use Firefox with appropriate settings
-            return self.scrape_with_firefox(url, is_ra=('ra.co' in url))
+            # Try Firefox first
+            logger.info("Trying Firefox...")
+            markdown = self.scrape_with_firefox(url)
+            if markdown and len(markdown.strip()) > 1:
+                return markdown
+            
+            # If Firefox fails or returns empty content, try Chrome
+            logger.info("Firefox failed or returned empty content, trying Chrome...")
+            return self.scrape_with_chrome(url)
                 
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
             return None
 
-    def scrape_with_firefox(self, url, is_ra=False):
-        """Use Firefox with site-specific optimizations"""
+    def scrape_with_firefox(self, url):
+        """Use Firefox to fetch the page"""
         logger.info(f"Fetching URL with Firefox: {url}")
         
         options = FirefoxOptions()
         options.add_argument('--headless')
         options.set_preference('javascript.enabled', True)
         options.set_preference('dom.webdriver.enabled', False)
-        options.set_preference('useAutomationExtension', False)
         
         try:
             from selenium.webdriver.firefox.service import Service
@@ -184,31 +190,64 @@ class Crawler:
             service = Service(log_path=os.devnull)
             driver = webdriver.Firefox(options=options, service=service)
             
-            # Get the page
             driver.get(url)
             
-            # Simple wait for page load completion
+            # Wait for page load
             WebDriverWait(driver, 30).until(
                 lambda d: d.execute_script('return document.readyState') == 'complete'
             )
             
-            # Get the rendered HTML
             html_content = driver.page_source
             
             # Convert to markdown
             h = html2text.HTML2Text()
-            h.ignore_links = False  # preserve hyperlinks
-            h.body_width = 0        # do not wrap text
+            h.ignore_links = False
+            h.body_width = 0
             markdown = h.handle(html_content)
             
-            # Log the result
-            content_length = len(markdown)
-            logger.info(f"Generated {content_length} bytes of markdown")
-            
+            logger.info(f"Firefox generated {len(markdown)} bytes of markdown")
             return markdown
             
         except Exception as e:
-            logger.error(f"Error with Firefox scraping: {e}")
+            logger.error(f"Firefox scraping error: {e}")
+            return None
+        finally:
+            try:
+                driver.quit()
+            except:
+                pass
+
+    def scrape_with_chrome(self, url):
+        """Use Chrome to fetch the page"""
+        logger.info(f"Fetching URL with Chrome: {url}")
+        
+        options = ChromeOptions()
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        
+        try:
+            driver = webdriver.Chrome(options=options)
+            driver.get(url)
+            
+            # Wait for page load
+            WebDriverWait(driver, 30).until(
+                lambda d: d.execute_script('return document.readyState') == 'complete'
+            )
+            
+            html_content = driver.page_source
+            
+            # Convert to markdown
+            h = html2text.HTML2Text()
+            h.ignore_links = False
+            h.body_width = 0
+            markdown = h.handle(html_content)
+            
+            logger.info(f"Chrome generated {len(markdown)} bytes of markdown")
+            return markdown
+            
+        except Exception as e:
+            logger.error(f"Chrome scraping error: {e}")
             return None
         finally:
             try:
