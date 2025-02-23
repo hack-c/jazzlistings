@@ -215,13 +215,13 @@ def process_venue(venue_info, session):
         # Get or create venue
         venue = get_or_create_venue(session, venue_info)
         
-        # Check for existing concerts
+        # Check for existing concerts before processing
         existing_concerts = check_existing_concerts(session, venue_name)
         if existing_concerts:
-            logging.info(f"Found {len(existing_concerts)} existing concerts for {venue_name}")
-            return
+            logging.debug(f"Found {len(existing_concerts)} existing concerts for {venue_name}")
+            return  # Skip if we already have concerts
             
-        logging.info(f"Processing {venue_name} - new venue")
+        logging.info(f"Processing {venue_name}")
         
         # Try custom scraper first if available
         concert_data = []
@@ -230,15 +230,15 @@ def process_venue(venue_info, session):
             concert_data = use_custom_scraper(venue_name, venue_url)
         else:
             # Use Firecrawl for other venues
+            logging.info(f"Using Firecrawl scraper for {venue_name}")
             concert_data = use_firecrawl(venue_url, venue_name, venue_info)
         
-        if not concert_data:
+        if concert_data:
+            store_concert_data(session, concert_data, venue_info)
+            logging.info(f"Completed processing {venue_name}")
+        else:
             logging.info(f"No concerts found for {venue_name}")
-            return
             
-        # Store concert data
-        store_concert_data(session, concert_data, venue_info)
-        
     except Exception as e:
         logging.error(f"Error processing {venue_name}: {e}")
 
@@ -317,45 +317,68 @@ def calculate_scrape_params(venue_count):
         'batch_delay': 60  # 1 minute between batches
     }
 
+def process_venue_batch(batch, session):
+    """Process a batch of venues"""
+    logging.info(f"Processing batch of {len(batch)} venues")
+    for venue_info in batch:
+        process_venue(venue_info, session)
+        time.sleep(random.uniform(1, 3))  # Rate limiting
+
 def main():
     """Main function that orchestrates the crawling, parsing, and storing of concert data."""
     session = Session()
     
     # List of venue websites to crawl
     venues = [
-        {'name': 'IFC Center',
-         'url': 'https://www.ifccenter.com/',
-         'default_times': [],  # Movies have variable times
-         'neighborhood': 'Greenwich Village',
-         'genres': ['Movies']
+        {'name': 'Village Vanguard', 
+         'url': 'https://villagevanguard.com', 
+         'default_times': ['20:00', '22:00']
         },
-        {'name': 'Film Forum',  # Add Film Forum
-         'url': 'https://filmforum.org/now_playing',
-         'default_times': [],  # Movies have variable times
-         'neighborhood': 'Greenwich Village',
-         'genres': ['Movies']
+        {'name': 'Bar Bayeux', 'url': 'https://www.barbayeux.com/jazz/', 'default_times': ['8:00 PM', '9:30 PM']},
+        {'name': 'Mansions', 
+         'url': 'https://ra.co/clubs/197275', 
+         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
         },
-        {'name': 'Quad Cinema',  # Add Quad Cinema
-         'url': 'https://quadcinema.com',
-         'default_times': [],  # Movies have variable times
-         'neighborhood': 'Greenwich Village',
-         'genres': ['Movies']
-        },
-        {'name': 'Mansions', 'url': 'https://ra.co/clubs/197275', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
         {'name': 'Close Up', 
          'url': 'https://www.closeupnyc.com/calendar', 
-         'default_times': ['7:00 PM', '9:00 PM']
+         'default_times': ['19:00', '21:00']
         },
-        {'name': 'Knockdown Center', 'url': 'https://knockdown.center/upcoming/', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-        {'name': 'Village Vanguard', 'url': 'https://villagevanguard.com', 'default_times': ['8:00 PM', '10:00 PM']},
-        {'name': 'Jupiter Disco', 'url': 'https://ra.co/clubs/128789', 'default_times': ['Daily 10:00 PM - 4:00 AM']},
-        {'name': 'Bossa Nova Civic Club', 'url': 'https://ra.co/clubs/71292', 'default_times': ['Daily 10:00 PM - 4:00 AM']},
-        {'name': 'House of Yes', 'url': 'https://www.houseofyes.org/calendar', 'default_times': ['Thursday 10:00 PM - 4:00 AM', 'Friday 10:00 PM - 4:00 AM']},
-        {'name': 'Elsewhere', 'url': 'https://www.elsewherebrooklyn.com/calendar', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-        {'name': 'Good Room', 'url': 'https://donyc.com/venues/good-room', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-        {'name': 'Nowadays', 'url': 'https://ra.co/clubs/105873', 'default_times': ['Friday 10:00 PM - 6:00 AM', 'Sunday 3:00 PM - 9:00 PM']},
-        {'name': 'Public Records', 'url': 'https://publicrecords.nyc', 'default_times': ['Thursday 7:00 PM - 12:00 AM', 'Saturday 11:00 PM - 4:00 AM']},
-        {'name': 'The Sultan Room', 'url': 'https://www.thesultanroom.com/calendar', 'default_times': ['Friday 8:00 PM - 1:00 AM', 'Saturday 8:00 PM - 1:00 AM']},
+        {'name': 'Jupiter Disco', 
+         'url': 'https://ra.co/clubs/128789', 
+         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+        },
+        {'name': 'Bossa Nova Civic Club', 
+         'url': 'https://ra.co/clubs/71292', 
+         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+        },
+        {'name': 'House of Yes', 
+         'url': 'https://www.houseofyes.org/calendar', 
+         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+        },
+        {'name': 'Elsewhere', 
+         'url': 'https://www.elsewherebrooklyn.com/calendar', 
+         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+        },
+        {'name': 'Good Room', 
+         'url': 'https://donyc.com/venues/good-room', 
+         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+        },
+        {'name': 'Nowadays', 
+         'url': 'https://ra.co/clubs/105873', 
+         'default_times': ['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00']
+        },
+        {'name': 'Public Records', 
+         'url': 'https://publicrecords.nyc', 
+         'default_times': ['19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+        },
+        {'name': 'The Sultan Room', 
+         'url': 'https://www.thesultanroom.com/calendar', 
+         'default_times': ['20:00', '21:00', '22:00', '23:00', '00:00', '01:00']
+        },
+        {'name': 'Knockdown Center', 
+         'url': 'https://knockdown.center/upcoming/', 
+         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+        },
         {'name': 'Black Flamingo', 'url': 'https://www.blackflamingonyc.com/events', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
         {'name': '3 Dollar Bill', 'url': 'https://www.3dollarbillbk.com/rsvp', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
         {'name': 'Smalls Jazz Club', 'url': 'https://www.smallslive.com', 'default_times': ['7:30 PM', '10:00 PM', '11:30 PM']},
@@ -366,7 +389,6 @@ def main():
         {'name': 'Ornithology Jazz Club', 'url': 'https://www.ornithologyjazzclub.com/events-2/', 'default_times': ['6:30 PM', '8:30 PM', '9:00 PM']},
         {'name': 'Ornithology Cafe', 'url': 'https://www.ornithologyjazzclub.com/new-page-1/', 'default_times': ['6:30 PM', '8:30 PM', '9:00 PM']},
         {'name': 'Bar LunÀtico', 'url': 'https://www.barlunatico.com/music/', 'default_times': ['9:00 PM', '10:15 PM']},
-        {'name': 'Bar Bayeux', 'url': 'https://www.barbayeux.com/jazz/', 'default_times': ['8:00 PM', '9:30 PM']},
         {'name': 'Marians Jazz Room', 'url': 'https://www.mariansbrooklyn.com/events', 'default_times': ['7:00 PM', '9:00 PM']},
         {'name': 'The Owl Music Parlor', 'url': 'https://theowl.nyc/calendar/', 'default_times': ['8:00 PM']},
         {'name': 'Zinc Bar', 'url': 'https://zincbar.com/', 'default_times': ['7:00 PM', '9:00 PM']},
@@ -402,7 +424,25 @@ def main():
         {'name': 'The Appel Room', 'url': 'https://www.lincolncenter.org/venue/the-appel-room/v/calendar', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'Symphony Space', 'url': 'https://www.symphonyspace.org/events', 'default_times': ['7:00 PM', '9:00 PM']},
         {'name': 'Le Poisson Rouge', 'url': 'https://www.lpr.com/', 'default_times': ['7:00 PM', '9:30 PM']},
-        {'name': 'Film at Lincoln Center', 'url': 'https://www.filmlinc.org/', 'default_times': ['7:00 PM', '9:30 PM']}
+        {'name': 'Film at Lincoln Center', 'url': 'https://www.filmlinc.org/', 'default_times': ['7:00 PM', '9:30 PM']},
+        {'name': 'IFC Center',
+         'url': 'https://www.ifccenter.com/',
+         'default_times': [],  # Movies have variable times
+         'neighborhood': 'Greenwich Village',
+         'genres': ['Movies']
+        },
+        {'name': 'Film Forum',  # Add Film Forum
+         'url': 'https://filmforum.org/now_playing',
+         'default_times': [],  # Movies have variable times
+         'neighborhood': 'Greenwich Village',
+         'genres': ['Movies']
+        },
+        {'name': 'Quad Cinema',  # Add Quad Cinema
+         'url': 'https://quadcinema.com',
+         'default_times': [],  # Movies have variable times
+         'neighborhood': 'Greenwich Village',
+         'genres': ['Movies']
+        },
     ]
     
     # Calculate scraping parameters
