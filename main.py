@@ -353,7 +353,7 @@ def main():
         {'name': 'Bar Bayeux', 'url': 'https://www.barbayeux.com/jazz/', 'default_times': ['8:00 PM', '9:30 PM']},
         {'name': 'Mansions', 
          'url': 'https://ra.co/clubs/197275', 
-         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+         'default_times': ['22:00']
         },
         {'name': 'Close Up', 
          'url': 'https://www.closeupnyc.com/calendar', 
@@ -361,42 +361,42 @@ def main():
         },
         {'name': 'Jupiter Disco', 
          'url': 'https://ra.co/clubs/128789', 
-         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+         'default_times': ['22:00']
         },
         {'name': 'Bossa Nova Civic Club', 
          'url': 'https://ra.co/clubs/71292', 
-         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+         'default_times': ['22:00']
         },
         {'name': 'House of Yes', 
          'url': 'https://www.houseofyes.org/calendar', 
-         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+         'default_times': ['22:00']
         },
         {'name': 'Elsewhere', 
          'url': 'https://www.elsewherebrooklyn.com/calendar', 
-         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+         'default_times': ['22:00']
         },
         {'name': 'Good Room', 
          'url': 'https://donyc.com/venues/good-room', 
-         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+         'default_times': ['22:00']
         },
         {'name': 'Nowadays', 
          'url': 'https://ra.co/clubs/105873', 
-         'default_times': ['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00']
+         'default_times': ['15:00', '20:00']
         },
         {'name': 'Public Records', 
          'url': 'https://publicrecords.nyc', 
-         'default_times': ['19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+         'default_times': ['20:00']
         },
         {'name': 'The Sultan Room', 
          'url': 'https://www.thesultanroom.com/calendar', 
-         'default_times': ['20:00', '21:00', '22:00', '23:00', '00:00', '01:00']
+         'default_times': ['20:00']
         },
         {'name': 'Knockdown Center', 
          'url': 'https://knockdown.center/upcoming/', 
-         'default_times': ['22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00']
+         'default_times': ['22:00']
         },
-        {'name': 'Black Flamingo', 'url': 'https://www.blackflamingonyc.com/events', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
-        {'name': '3 Dollar Bill', 'url': 'https://www.3dollarbillbk.com/rsvp', 'default_times': ['Friday 10:00 PM - 4:00 AM', 'Saturday 10:00 PM - 4:00 AM']},
+        {'name': 'Black Flamingo', 'url': 'https://www.blackflamingonyc.com/events', 'default_times': ['22:00']},
+        {'name': '3 Dollar Bill', 'url': 'https://www.3dollarbillbk.com/rsvp', 'default_times': ['22:00']},
         {'name': 'Smalls Jazz Club', 'url': 'https://www.smallslive.com', 'default_times': ['7:30 PM', '10:00 PM', '11:30 PM']},
         {'name': 'Mezzrow Jazz Club', 'url': 'https://mezzrow.com/', 'default_times': ['7:30 PM', '9:00 PM', '10:30 PM']},
         {'name': 'Dizzy\'s Club', 'url': 'https://jazz.org/concerts-events/calendar/', 'default_times': ['7:30 PM', '9:30 PM']},
