@@ -36,38 +36,61 @@ def init_db():
         print("Running database migrations...")
         db = SessionLocal()
         try:
-            # Set timeout for SQLite locks
-            db.execute(text("PRAGMA busy_timeout = 5000"))
+            # Set a longer timeout for SQLite locks
+            db.execute(text("PRAGMA busy_timeout = 30000"))  # 30 second timeout
             
-            # Add columns directly with SQL
-            db.execute(text("""
-                ALTER TABLE venues ADD COLUMN IF NOT EXISTS neighborhood VARCHAR;
-                ALTER TABLE venues ADD COLUMN IF NOT EXISTS genres JSON;
-            """))
+            # Add columns if they don't exist
+            inspector = inspect(engine)
+            columns = [c['name'] for c in inspector.get_columns('venues')]
             
-            # Update venue data
+            if 'neighborhood' not in columns:
+                db.execute(text("ALTER TABLE venues ADD COLUMN neighborhood VARCHAR"))
+            if 'genres' not in columns:
+                db.execute(text("ALTER TABLE venues ADD COLUMN genres JSON"))
+            
+            # Import venue data
             from migrations.add_venue_fields import venue_data
             
-            # Update in batches to avoid locks
+            # Update venues one at a time to avoid locks
             for venue in db.query(Venue).all():
-                if venue.name in venue_data:
-                    venue.neighborhood = venue_data[venue.name]['neighborhood']
-                    venue.genres = venue_data[venue.name]['genres']
+                try:
+                    if venue.name in venue_data:
+                        db.execute(
+                            text("UPDATE venues SET neighborhood = :n, genres = :g WHERE id = :id"),
+                            {
+                                'n': venue_data[venue.name]['neighborhood'],
+                                'g': venue_data[venue.name]['genres'],
+                                'id': venue.id
+                            }
+                        )
+                        db.commit()  # Commit each update individually
+                except Exception as e:
+                    print(f"Error updating venue {venue.name}: {e}")
+                    db.rollback()
             
-            # Set default values for NULL fields
-            db.execute(text("""
-                UPDATE venues 
-                SET neighborhood = 'Other'
-                WHERE neighborhood IS NULL OR neighborhood = '';
-            """))
+            # Set defaults for any remaining NULL values
+            try:
+                db.execute(text("""
+                    UPDATE venues 
+                    SET neighborhood = 'Other'
+                    WHERE neighborhood IS NULL OR neighborhood = ''
+                """))
+                db.commit()
+            except Exception as e:
+                print(f"Error setting default neighborhoods: {e}")
+                db.rollback()
+                
+            try:
+                db.execute(text("""
+                    UPDATE venues 
+                    SET genres = '[]'
+                    WHERE genres IS NULL
+                """))
+                db.commit()
+            except Exception as e:
+                print(f"Error setting default genres: {e}")
+                db.rollback()
             
-            db.execute(text("""
-                UPDATE venues 
-                SET genres = '[]'
-                WHERE genres IS NULL;
-            """))
-            
-            db.commit()
             print("Database migration successful")
             
         except Exception as e:
