@@ -1,18 +1,33 @@
 from database import SessionLocal, engine
-from sqlalchemy import Column, String, JSON
+from sqlalchemy import Column, String, JSON, text
 from models import Venue
-from alembic import op
-import sqlalchemy as sa
 import logging
+from sqlalchemy import inspect
 
 def upgrade():
-    with op.batch_alter_table('venues') as batch_op:
-        batch_op.add_column(Column('neighborhood', String))
-        batch_op.add_column(Column('genres', JSON))
-
-    # Populate with initial data
     db = SessionLocal()
     try:
+        # First check if columns exist
+        inspector = inspect(engine)
+        columns = [c['name'] for c in inspector.get_columns('venues')]
+        
+        # Add columns only if they don't exist
+        with engine.begin() as conn:
+            if 'neighborhood' not in columns:
+                conn.execute(text("""
+                    ALTER TABLE venues 
+                    ADD COLUMN neighborhood VARCHAR;
+                """))
+                logging.info("Added neighborhood column")
+                
+            if 'genres' not in columns:
+                conn.execute(text("""
+                    ALTER TABLE venues 
+                    ADD COLUMN genres JSON;
+                """))
+                logging.info("Added genres column")
+
+        # Populate with initial data
         # Define known venue neighborhoods and genres
         venue_data = {
             # Movie Theaters
@@ -203,16 +218,19 @@ def upgrade():
                 'genres': ['Jazz']         }
         }
 
-        # First, update existing venues
+        # Update venues, preserving any existing data
         for venue in db.query(Venue).all():
             if venue.name in venue_data:
-                venue.neighborhood = venue_data[venue.name]['neighborhood']
-                venue.genres = venue_data[venue.name]['genres']
-                logging.info(f"Updated existing venue: {venue.name} with neighborhood: {venue.neighborhood}")
+                # Only update if fields are None/empty
+                if not venue.neighborhood:
+                    venue.neighborhood = venue_data[venue.name]['neighborhood']
+                if not venue.genres:
+                    venue.genres = venue_data[venue.name]['genres']
+                logging.info(f"Updated venue: {venue.name} with neighborhood: {venue.neighborhood}")
             else:
-                logging.warning(f"No data found for existing venue: {venue.name}")
+                logging.warning(f"No data found for venue: {venue.name}")
 
-        # Then, add any missing venues
+        # Add any missing venues
         existing_venues = {venue.name for venue in db.query(Venue).all()}
         for name, data in venue_data.items():
             if name not in existing_venues:
@@ -222,22 +240,35 @@ def upgrade():
                     genres=data['genres']
                 )
                 db.add(new_venue)
-                logging.info(f"Added new venue: {name} with neighborhood: {data['neighborhood']}")
+                logging.info(f"Added new venue: {name}")
+
+        # Set default values for any remaining NULL fields
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE venues 
+                SET neighborhood = 'Other'
+                WHERE neighborhood IS NULL;
+            """))
+            conn.execute(text("""
+                UPDATE venues 
+                SET genres = '[]'
+                WHERE genres IS NULL;
+            """))
 
         db.commit()
-
+        
         # Verify the update
-        logging.info("Verifying venue data after update:")
+        logging.info("Verifying venue data:")
         for venue in db.query(Venue).all():
             logging.info(f"Venue: {venue.name}, Neighborhood: {venue.neighborhood}, Genres: {venue.genres}")
 
     except Exception as e:
         logging.error(f"Error updating venue data: {e}")
         db.rollback()
+        raise
     finally:
         db.close()
 
 def downgrade():
-    with op.batch_alter_table('venues') as batch_op:
-        batch_op.drop_column('neighborhood')
-        batch_op.drop_column('genres') 
+    # Don't drop columns in production, just log
+    logging.warning("Downgrade requested but skipped for safety in production") 
