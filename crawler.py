@@ -51,17 +51,26 @@ class Crawler:
     def fetch_with_selenium(self, url):
         """Uses Selenium with Chrome in headless mode."""
         options = Options()
-        options.headless = True
-        driver = webdriver.Chrome(options=options)
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        
         try:
+            driver = webdriver.Chrome(options=options)
             driver.get(url)
             WebDriverWait(driver, 30).until(
                 lambda d: d.execute_script('return document.readyState') == 'complete'
             )
             html_content = driver.page_source
             return html_content
+        except Exception as e:
+            logger.error(f"Selenium error: {e}")
+            raise
         finally:
-            driver.quit()
+            try:
+                driver.quit()
+            except:
+                pass
 
     def fetch_with_requests(self, url):
         """Uses Requests to get the raw content."""
@@ -87,73 +96,44 @@ class Crawler:
     def scrape_venue(self, url):
         """
         Fetch the given URL and return the Markdown content.
-        First tries Firecrawl, falls back to Selenium/Requests if needed.
+        First tries Firecrawl, falls back to direct scraping.
         """
         max_retries = 3
         retry_delay = 1
-
+        
+        # Try Firecrawl first
+        try:
+            logger.info("Attempting Firecrawl scrape")
+            scrape_result = self.app.scrape_url(url, params={'formats': ['markdown']})
+            sleep(6)
+            if 'markdown' in scrape_result:
+                return scrape_result['markdown']
+        except Exception as e:
+            if "Insufficient credits" in str(e):
+                logger.info("Firecrawl credits exhausted, falling back to direct scraping")
+            else:
+                logger.warning(f"Firecrawl error: {e}")
+        
+        # Fallback to direct scraping
+        logger.info("Using direct scraping")
         for attempt in range(max_retries):
             try:
-                # Add a small delay
-                sleep(0.1)
-                
-                # Try Firecrawl first
+                # Try Selenium first
                 try:
-                    scrape_result = self.app.scrape_url(
-                        url, params={'formats': ['markdown']})
-                    sleep(6)
-                    if 'markdown' in scrape_result:
-                        return scrape_result['markdown']
-                except Exception as e:
-                    if "Insufficient credits" in str(e):
-                        logger.info("Firecrawl credits exhausted, falling back to direct scraping")
-                    else:
-                        logger.error(f"Firecrawl error: {e}")
-
-                # Fallback to direct scraping
-                cache_file = self.get_cache_filename(url)
-                
-                # Check cache first
-                if self.is_cache_valid(cache_file):
-                    cached_content = self.load_cache(cache_file)
-                    if url.lower().endswith(".pdf"):
-                        return self.extract_text_from_pdf(cached_content)
-                    return self.convert_html_to_markdown(cached_content.decode("utf-8", errors="replace"))
-
-                # Fetch content based on type
-                if url.lower().endswith(".pdf"):
-                    pdf_bytes, _ = self.fetch_with_requests(url)
-                    text = self.extract_text_from_pdf(pdf_bytes)
-                    self.save_cache(cache_file, pdf_bytes)
-                    return text
-                else:
-                    try:
-                        html_content = self.fetch_with_selenium(url)
-                    except Exception as e:
-                        logger.error(f"Selenium fetch failed, falling back to Requests. Error: {e}")
-                        html_bytes, _ = self.fetch_with_requests(url)
-                        html_content = html_bytes.decode("utf-8", errors="replace")
-                    
-                    self.save_cache(cache_file, html_content.encode("utf-8"))
+                    html_content = self.fetch_with_selenium(url)
                     return self.convert_html_to_markdown(html_content)
-
-            except requests.exceptions.SSLError:
-                # Try again without SSL verification as fallback
-                try:
-                    response = requests.get(url, timeout=30, verify=False)
-                    response.raise_for_status()
-                    return self.convert_html_to_markdown(response.text)
                 except Exception as e:
-                    logger.error(f"Error on SSL fallback for {url}: {e}")
-                    
+                    logger.warning(f"Selenium failed, trying Requests: {e}")
+                    html_bytes, _ = self.fetch_with_requests(url)
+                    return self.convert_html_to_markdown(html_bytes.decode("utf-8", errors="replace"))
+                
             except Exception as e:
-                logger.error(f"Attempt {attempt + 1} failed for {url}: {e}")
+                logger.error(f"Attempt {attempt + 1} failed: {e}")
                 if attempt < max_retries - 1:
                     sleep(retry_delay)
-                    retry_delay *= 2  # Exponential backoff
-                continue
-                
-        logger.error(f"All attempts failed for {url}")
+                    retry_delay *= 2
+        
+        logger.error(f"All scraping attempts failed for {url}")
         return None
 
     def crawl(self):

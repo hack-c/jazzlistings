@@ -320,8 +320,16 @@ def calculate_scrape_params(venue_count):
 def process_venue_batch(batch, session):
     """Process a batch of venues"""
     logging.info(f"Processing batch of {len(batch)} venues")
+    processed_venues = set()  # Track which venues we've processed
+    
     for venue_info in batch:
+        venue_name = venue_info['name']
+        if venue_name in processed_venues:
+            logging.debug(f"Skipping duplicate venue: {venue_name}")
+            continue
+            
         process_venue(venue_info, session)
+        processed_venues.add(venue_name)
         time.sleep(random.uniform(1, 3))  # Rate limiting
 
 def main():
