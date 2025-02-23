@@ -133,23 +133,22 @@ def parse_markdown(markdown_content, venue_info):
         6. For recurring events (like "Every Monday Night"), create an entry with special handling
         7. If the artist is listed as "TBA", "TBD", or "To Be Announced", skip it
 
-        Markdown Content:
-        {markdown_content[:640000]}
-
         Extract the concert information and output it in the following JSON format:
-        [
-            {{
-                "artist": "Artist Name",
-                "date": "YYYY-MM-DD",
-                "times": ["HH:MM"],
-                "venue": "Venue Name",
-                "address": "Venue Address",
-                "ticket_link": "URL",
-                "price_range": null,
-                "special_notes": "Band members: Person1 (instrument), Person2 (instrument), ..."
-            }},
-            ...
-        ]
+        {{
+            "concerts": [
+                {{
+                    "artist": "Artist Name",
+                    "date": "YYYY-MM-DD",
+                    "times": ["HH:MM"],
+                    "venue": "Venue Name",
+                    "address": "Venue Address",
+                    "ticket_link": "URL",
+                    "price_range": null,
+                    "special_notes": "Band members: Person1 (instrument), Person2 (instrument), ..."
+                }},
+                ...
+            ]
+        }}
 
         Important formatting rules:
         - For date, use YYYY-MM-DD format
@@ -158,8 +157,6 @@ def parse_markdown(markdown_content, venue_info):
         - If any other field is missing or unclear, use null
         - Assume all times are Eastern Time
         - Include ALL band member details in special_notes
-        
-        Provide only the JSON array as the output.
         """
 
         # Prepare the user message with venue context
@@ -183,7 +180,7 @@ def parse_markdown(markdown_content, venue_info):
 
         # Parse the response
         result = json.loads(response.choices[0].message.content)
-        concerts = result
+        concerts = result.get('concerts', [])  # Get the concerts array from the response
         
         logger.info(f"OpenAI parser found {len(concerts)} concerts")
         if concerts:
@@ -193,7 +190,7 @@ def parse_markdown(markdown_content, venue_info):
 
     except Exception as e:
         logger.error(f"Error using OpenAI parser: {e}")
-        logger.exception(e)
+        logger.exception(e)  # Log the full traceback
         
         # Fallback to regex parser
         logger.info("Falling back to regex parser")
