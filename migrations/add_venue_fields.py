@@ -3,6 +3,7 @@ from sqlalchemy import Column, String, JSON
 from models import Venue
 from alembic import op
 import sqlalchemy as sa
+import logging
 
 def upgrade():
     with op.batch_alter_table('venues') as batch_op:
@@ -203,14 +204,34 @@ def upgrade():
             }
         }
 
-        # Update existing venues
+        # First, update existing venues
         for venue in db.query(Venue).all():
             if venue.name in venue_data:
                 venue.neighborhood = venue_data[venue.name]['neighborhood']
                 venue.genres = venue_data[venue.name]['genres']
+                logging.info(f"Updated existing venue: {venue.name}")
+            else:
+                logging.warning(f"No data found for existing venue: {venue.name}")
+
+        # Then, add any missing venues
+        existing_venues = {venue.name for venue in db.query(Venue).all()}
+        for name, data in venue_data.items():
+            if name not in existing_venues:
+                new_venue = Venue(
+                    name=name,
+                    neighborhood=data['neighborhood'],
+                    genres=data['genres'],
+                    website_url=None  # You might want to add website URLs to venue_data
+                )
+                db.add(new_venue)
+                logging.info(f"Added new venue: {name}")
         
         db.commit()
         print("Successfully updated venue data")
+        
+        # Verify the update
+        for venue in db.query(Venue).all():
+            print(f"Venue: {venue.name}, Neighborhood: {venue.neighborhood}, Genres: {venue.genres}")
         
     except Exception as e:
         print(f"Error updating venue data: {e}")
