@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from config import DATABASE_URL
 from base import Base
 from models import Venue
+import json  # Add this import
 
 # Create the SQLAlchemy engine
 engine = create_engine(DATABASE_URL, echo=True)
@@ -96,7 +97,7 @@ def init_db():
                             text("UPDATE venues SET neighborhood = :n, genres = :g WHERE id = :id"),
                             {
                                 'n': venue_data[venue.name]['neighborhood'],
-                                'g': venue_data[venue.name]['genres'],
+                                'g': json.dumps(venue_data[venue.name]['genres']),  # Convert list to JSON string
                                 'id': venue.id
                             }
                         )
