@@ -117,6 +117,7 @@ def parse_markdown(markdown_content, venue_info):
     """Parse markdown content into concert data using OpenAI"""
     logger = logging.getLogger('concert_app')
     logger.info(f"Parsing markdown for {venue_info['name']} using OpenAI")
+    current_date = str(datetime.now().date())
     
     try:
         # Prepare the system message
@@ -125,13 +126,12 @@ def parse_markdown(markdown_content, venue_info):
         Focus on finding concert details like dates, times, artists, and venue information.
 
         IMPORTANT PARSING RULES:
-        1. Extract ALL concerts, including those listed under "COMING SOON!"
+        1. Extract ALL concerts occurring on {current_date} and later
         2. For date ranges like "February 18 - February 23", create an entry for each day in the range
-        3. For listings without explicit times, use empty array for times
-        4. For "COMING SOON!" listings, include them with their dates and artists
-        5. Include any band member details in the special_notes field
-        6. For recurring events (like "Every Monday Night"), create an entry with special handling
-        7. If the artist is listed as "TBA", "TBD", or "To Be Announced", skip it
+        3. For listings without explicit times, use the default times given by the user, and an empty array for times if none are given
+        4. Include any band member details in the special_notes field
+        5. For recurring events (like "Every Monday Night"), create an entry with special handling
+        6. If the artist is listed as "TBA", "TBD", or "To Be Announced", skip it
 
         Extract the concert information and output it in the following JSON format:
         {{
