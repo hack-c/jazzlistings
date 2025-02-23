@@ -351,14 +351,9 @@ def main():
     
     # List of venue websites to crawl
     venues = [
-        {'name': 'Bar Bayeux', 'url': 'https://www.barbayeux.com/jazz/', 'default_times': ['8:00 PM', '9:30 PM']},
         {'name': 'Mansions', 
          'url': 'https://ra.co/clubs/197275', 
          'default_times': ['22:00']
-        },
-        {'name': 'Close Up', 
-         'url': 'https://www.closeupnyc.com/calendar', 
-         'default_times': ['19:00', '21:00']
         },
         {'name': 'Jupiter Disco', 
          'url': 'https://ra.co/clubs/128789', 
@@ -368,9 +363,9 @@ def main():
          'url': 'https://ra.co/clubs/71292', 
          'default_times': ['22:00']
         },
-        {'name': 'House of Yes', 
-         'url': 'https://www.houseofyes.org/calendar', 
-         'default_times': ['22:00']
+        {'name': 'Nowadays', 
+         'url': 'https://ra.co/clubs/105873', 
+         'default_times': ['15:00', '20:00']
         },
         {'name': 'Elsewhere', 
          'url': 'https://www.elsewherebrooklyn.com/calendar', 
@@ -379,11 +374,7 @@ def main():
         {'name': 'Good Room', 
          'url': 'https://donyc.com/venues/good-room', 
          'default_times': ['22:00']
-        },
-        {'name': 'Nowadays', 
-         'url': 'https://ra.co/clubs/105873', 
-         'default_times': ['15:00', '20:00']
-        },
+        },        
         {'name': 'Public Records', 
          'url': 'https://publicrecords.nyc', 
          'default_times': ['20:00']
@@ -396,8 +387,13 @@ def main():
          'url': 'https://villagevanguard.com', 
          'default_times': ['20:00', '22:00']
         },
+        {'name': 'Bar Bayeux', 'url': 'https://www.barbayeux.com/jazz/', 'default_times': ['8:00 PM', '9:30 PM']},
         {'name': 'Knockdown Center', 
          'url': 'https://knockdown.center/upcoming/', 
+         'default_times': ['22:00']
+        },
+        {'name': 'House of Yes', 
+         'url': 'https://www.houseofyes.org/calendar', 
          'default_times': ['22:00']
         },
         {'name': 'Black Flamingo', 'url': 'https://www.blackflamingonyc.com/events', 'default_times': ['22:00']},
@@ -445,6 +441,10 @@ def main():
         {'name': 'The Appel Room', 'url': 'https://www.lincolncenter.org/venue/the-appel-room/v/calendar', 'default_times': ['7:30 PM', '9:30 PM']},
         {'name': 'Symphony Space', 'url': 'https://www.symphonyspace.org/events', 'default_times': ['7:00 PM', '9:00 PM']},
         {'name': 'Le Poisson Rouge', 'url': 'https://www.lpr.com/', 'default_times': ['7:00 PM', '9:30 PM']},
+        {'name': 'Close Up', 
+         'url': 'https://www.closeupnyc.com/calendar', 
+         'default_times': ['19:00', '21:00']
+        },
         {'name': 'Film at Lincoln Center', 'url': 'https://www.filmlinc.org/', 'default_times': ['7:00 PM', '9:30 PM']},
         {'name': 'IFC Center',
          'url': 'https://www.ifccenter.com/',
