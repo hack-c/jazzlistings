@@ -1,9 +1,51 @@
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
 from config import DATABASE_URL
+from models import Venue
 
 # Create the SQLAlchemy engine
 engine = create_engine(DATABASE_URL, echo=True)
+
+# Venue data for initialization
+venue_data = {
+    'Village Vanguard': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
+    'Smalls Jazz Club': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
+    'Dizzy\'s Club': {'neighborhood': 'Columbus Circle', 'genres': ['Jazz']},
+    'Mezzrow Jazz Club': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
+    'The Jazz Gallery': {'neighborhood': 'Flatiron', 'genres': ['Jazz']},
+    'Ornithology Cafe': {'neighborhood': 'Bushwick', 'genres': ['Jazz']},
+    'Ornithology Jazz Club': {'neighborhood': 'Bushwick', 'genres': ['Jazz']},
+    'Bar LunÀtico': {'neighborhood': 'Bedford-Stuyvesant', 'genres': ['Jazz']},
+    'Bar Bayeux': {'neighborhood': 'Prospect Heights', 'genres': ['Jazz']},
+    'The Owl Music Parlor': {'neighborhood': 'Prospect Heights', 'genres': ['Jazz']},
+    'Marians Jazz Room': {'neighborhood': 'Williamsburg', 'genres': ['Jazz']},
+    'Zinc Bar': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
+    'The Stone': {'neighborhood': 'East Village', 'genres': ['Jazz']},
+    'Nublu 151': {'neighborhood': 'East Village', 'genres': ['Jazz']},
+    'Birdland': {'neighborhood': 'Theater District', 'genres': ['Jazz']},
+    'Room 623 at B2 Harlem': {'neighborhood': 'Harlem', 'genres': ['Jazz']},
+    'Smoke Jazz & Supper Club': {'neighborhood': 'Upper West Side', 'genres': ['Jazz']},
+    'Drom': {'neighborhood': 'East Village', 'genres': ['Jazz']},
+    'Roulette': {'neighborhood': 'Downtown Brooklyn', 'genres': ['Jazz']},
+    'The Django': {'neighborhood': 'Tribeca', 'genres': ['Jazz']},
+    'Joe\'s Pub': {'neighborhood': 'NoHo', 'genres': ['Jazz']},
+    'Minton\'s Playhouse': {'neighborhood': 'Harlem', 'genres': ['Jazz']},
+    'National Sawdust': {'neighborhood': 'Williamsburg', 'genres': ['Jazz']},
+    'The Cutting Room': {'neighborhood': 'Flatiron', 'genres': ['Jazz']},
+    'Symphony Space': {'neighborhood': 'Upper West Side', 'genres': ['Jazz']},
+    'Le Poisson Rouge': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
+    'Knockdown Center': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+    'Bossa Nova Civic Club': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+    'House of Yes': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+    'Jupiter Disco': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+    'Public Records': {'neighborhood': 'Gowanus', 'genres': ['Clubs']},
+    'The Sultan Room': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+    'Mansions': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+    'Close Up': {'neighborhood': 'Lower East Side', 'genres': ['Jazz']},
+    'IFC Center': {'neighborhood': 'Greenwich Village', 'genres': ['Movies']},
+    'Film Forum': {'neighborhood': 'Greenwich Village', 'genres': ['Movies']},
+    'Quad Cinema': {'neighborhood': 'Greenwich Village', 'genres': ['Movies']},
+}
 
 # Create a configured "Session" class
 Session = sessionmaker(bind=engine)
@@ -47,9 +89,6 @@ def init_db():
                 db.execute(text("ALTER TABLE venues ADD COLUMN neighborhood VARCHAR"))
             if 'genres' not in columns:
                 db.execute(text("ALTER TABLE venues ADD COLUMN genres JSON"))
-            
-            # Import venue data
-            from migrations.add_venue_fields import venue_data
             
             # Update venues one at a time to avoid locks
             for venue in db.query(Venue).all():
