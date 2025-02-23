@@ -163,14 +163,14 @@ def index():
         # First get all concerts
         concerts = query.all()
         
-        # Organize concerts by neighborhood
-        concerts_by_neighborhood = defaultdict(list)
+        # Organize concerts by date first, then by neighborhood
+        concerts_by_date = defaultdict(lambda: defaultdict(list))
         
         for concert in concerts:
             # Get earliest time for sorting
             earliest_time = min((t.time for t in concert.times), default=datetime_time(23, 59))
             
-            # Create concert dict with all needed info including earliest time
+            # Create concert dict with all needed info
             concert_dict = {
                 'venue_name': concert.venue.name,
                 'artists': concert.artists,
@@ -183,27 +183,27 @@ def index():
                     [artist.name for artist in concert.artists]
                 ),
                 'earliest_time': earliest_time,
-                'date': concert.date,
                 'spotify_score': 0  # You can keep your existing Spotify logic here
             }
             
-            # Add to appropriate neighborhood
+            # Add to appropriate date and neighborhood
             neighborhood = concert.venue.neighborhood or 'Other'
-            concerts_by_neighborhood[neighborhood].append(concert_dict)
+            concerts_by_date[concert.date][neighborhood].append(concert_dict)
         
-        # Sort concerts within each neighborhood by date and time
-        for neighborhood in concerts_by_neighborhood:
-            concerts_by_neighborhood[neighborhood].sort(
-                key=lambda x: (x['date'], x['earliest_time'])
-            )
+        # Sort concerts within each neighborhood by time
+        for date in concerts_by_date:
+            for neighborhood in concerts_by_date[date]:
+                concerts_by_date[date][neighborhood].sort(
+                    key=lambda x: x['earliest_time']
+                )
         
-        # Sort neighborhoods alphabetically
-        sorted_neighborhoods = sorted(concerts_by_neighborhood.keys())
+        # Sort dates
+        sorted_dates = sorted(concerts_by_date.keys())
         
         return render_template(
             'index.html',
-            concerts_by_neighborhood=concerts_by_neighborhood,
-            sorted_neighborhoods=sorted_neighborhoods,
+            concerts_by_date=concerts_by_date,
+            sorted_dates=sorted_dates,
             user=user if 'user_id' in session else None
         )
     finally:

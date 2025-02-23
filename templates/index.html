@@ -4,47 +4,53 @@
 <div class="concerts">
     <h1>Upcoming Shows</h1>
     
-    {% for neighborhood in sorted_neighborhoods %}
-    <div class="neighborhood-section">
-        <h2>{{ neighborhood }}</h2>
+    {% for date in sorted_dates %}
+    <div class="date-section">
+        <h2>{{ date.strftime('%A, %B %d, %Y') }}</h2>
         
-        {% for concert in concerts_by_neighborhood[neighborhood] %}
-        <div class="concert-card {% if concert.spotify_score > 0 %}spotify-match{% endif %}">
-            <div class="venue">{{ concert.venue_name }}</div>
-            <div class="artists">
-                {% for artist in concert.artists %}
-                    <span class="artist">{{ artist.name }}</span>
-                    {% if not loop.last %}, {% endif %}
-                {% endfor %}
-            </div>
-            {% if concert.spotify_score > 0 %}
-                <div class="spotify-match-indicator">
-                    <i class="fa fa-spotify"></i> Artist in Your Spotify Library
+        {% for neighborhood, concerts in concerts_by_date[date].items() %}
+        <div class="neighborhood-section">
+            <h3>{{ neighborhood }}</h3>
+            
+            {% for concert in concerts %}
+            <div class="concert-card {% if concert.spotify_score > 0 %}spotify-match{% endif %}">
+                <div class="venue">{{ concert.venue_name }}</div>
+                <div class="artists">
+                    {% for artist in concert.artists %}
+                        <span class="artist">{{ artist.name }}</span>
+                        {% if not loop.last %}, {% endif %}
+                    {% endfor %}
                 </div>
-            {% endif %}
-            <div class="times">
-                {% for time in concert.times %}
-                <span class="time">{{ time.time.strftime('%-I:%M %p') }}</span>
-                {% endfor %}
-            </div>
-            <div class="action-links">
-                {% if concert.ticket_link %}
-                <div class="tickets">
-                    <a href="{{ concert.ticket_link }}" target="_blank">Tickets</a>
-                </div>
+                {% if concert.spotify_score > 0 %}
+                    <div class="spotify-match-indicator">
+                        <i class="fa fa-spotify"></i> Artist in Your Spotify Library
+                    </div>
                 {% endif %}
-                <div class="calendar-links">
-                    <a href="{{ concert.calendar_links.gcal }}" target="_blank" class="calendar-link">
-                        <i class="far fa-calendar-plus"></i> Google Calendar
-                    </a>
-                    <a href="{{ concert.calendar_links.ical }}" class="calendar-link" download="event.ics">
-                        <i class="far fa-calendar-alt"></i> iCal
-                    </a>
+                <div class="times">
+                    {% for time in concert.times %}
+                    <span class="time">{{ time.time.strftime('%-I:%M %p') }}</span>
+                    {% endfor %}
                 </div>
+                <div class="action-links">
+                    {% if concert.ticket_link %}
+                    <div class="tickets">
+                        <a href="{{ concert.ticket_link }}" target="_blank">Tickets</a>
+                    </div>
+                    {% endif %}
+                    <div class="calendar-links">
+                        <a href="{{ concert.calendar_links.gcal }}" target="_blank" class="calendar-link">
+                            <i class="far fa-calendar-plus"></i> Google Calendar
+                        </a>
+                        <a href="{{ concert.calendar_links.ical }}" class="calendar-link" download="event.ics">
+                            <i class="far fa-calendar-alt"></i> iCal
+                        </a>
+                    </div>
+                </div>
+                {% if concert.special_notes %}
+                <div class="notes">{{ concert.special_notes }}</div>
+                {% endif %}
             </div>
-            {% if concert.special_notes %}
-            <div class="notes">{{ concert.special_notes }}</div>
-            {% endif %}
+            {% endfor %}
         </div>
         {% endfor %}
     </div>
