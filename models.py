@@ -17,7 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
-from database import Base
+from base import Base
 
 # Association table for many-to-many relationship between concerts and artists
 concert_artists = Table(

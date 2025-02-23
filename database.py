@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
+from sqlalchemy.orm import sessionmaker, scoped_session
 from config import DATABASE_URL
+from base import Base
 from models import Venue
 
 # Create the SQLAlchemy engine
@@ -52,9 +53,6 @@ Session = sessionmaker(bind=engine)
 
 # Create a scoped session
 SessionLocal = scoped_session(Session)
-
-# Create a base class for declarative models
-Base = declarative_base()
 
 def add_column(engine, table_name, column):
     """Safely add a column to a table if it doesn't exist"""
