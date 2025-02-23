@@ -8,12 +8,15 @@ import hashlib
 import requests
 from io import BytesIO
 from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import html2text
 from pdfminer.high_level import extract_text
 import logging
+from datetime import datetime
+import json
 
 logger = logging.getLogger('concert_app')
 
@@ -31,6 +34,9 @@ class Crawler:
         self.app = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
         self.cache_dir = "cache"
         os.makedirs(self.cache_dir, exist_ok=True)
+        self.h = html2text.HTML2Text()
+        self.h.ignore_links = False
+        self.h.body_width = 0
 
     def get_cache_filename(self, url):
         """Get the cache filename for a URL."""
@@ -56,7 +62,7 @@ class Crawler:
 
     def fetch_with_selenium(self, url, proxy=None):
         """Uses Selenium with Firefox in headless mode."""
-        options = Options()
+        options = FirefoxOptions()
         options.add_argument('--headless')
         if proxy:
             options.add_argument(f'--proxy-server={proxy}')
@@ -140,59 +146,90 @@ class Crawler:
         return h.handle(html_content)
 
     def scrape_venue(self, url):
-        """Fetch the given URL and return the Markdown content."""
-        cache_file = self.get_cache_filename(url)
-        
-        # Try Firecrawl first
+        """Scrape a venue's website for concert information"""
         try:
+            # First try Firecrawl
             logger.info("Attempting Firecrawl scrape")
-            scrape_result = self.app.scrape_url(url, params={'formats': ['markdown']})
-            time.sleep(6)
-            if 'markdown' in scrape_result:
-                logger.info("Successfully got content from Firecrawl")
-                return scrape_result['markdown']
-        except Exception as e:
-            if "Insufficient credits" in str(e):
-                logger.info("Firecrawl credits exhausted, falling back to direct scraping")
-            else:
-                logger.warning(f"Firecrawl error: {e}")
-
-        # Check cache
-        if self.is_cache_valid(cache_file):
-            logger.info("Using cached content")
-            cached_content = self.load_cache(cache_file)
-            if url.lower().endswith(".pdf"):
-                return self.extract_text_from_pdf(cached_content)
-            return self.convert_html_to_markdown(cached_content.decode("utf-8", errors="replace"))
-
-        # Fetch content based on type
-        if url.lower().endswith(".pdf"):
-            pdf_bytes, _ = self.fetch_with_requests(url)
-            text = self.extract_text_from_pdf(pdf_bytes)
-            self.save_cache(cache_file, pdf_bytes)
-            return text
-        else:
             try:
-                html_content = self.fetch_with_selenium(url)
-                if not html_content:
-                    logger.warning("No content received from Selenium")
-                    return None
-                
-                markdown = self.convert_html_to_markdown(html_content)
-                if not markdown.strip():
-                    logger.warning("Converted markdown is empty")
-                    return None
-                    
-                self.save_cache(cache_file, html_content.encode("utf-8"))
-                return markdown
+                markdown = self.use_firecrawl(url)
+                if markdown:
+                    return markdown
             except Exception as e:
-                logger.warning(f"Selenium failed, trying Requests: {e}")
-                html_bytes, _ = self.fetch_with_requests(url)
-                html_content = html_bytes.decode("utf-8", errors="replace")
+                if "insufficient credits" in str(e).lower():
+                    logger.info("Firecrawl credits exhausted, falling back to direct scraping")
+                else:
+                    logger.error(f"Firecrawl error: {e}")
+            
+            # If Firecrawl fails, use Firefox with appropriate settings
+            return self.scrape_with_firefox(url, is_ra=('ra.co' in url))
                 
-                if not html_content:
-                    logger.warning("No content received from Requests")
-                    return None
-                    
-                self.save_cache(cache_file, html_content.encode("utf-8"))
-                return self.convert_html_to_markdown(html_content)
+        except Exception as e:
+            logger.error(f"Error scraping {url}: {e}")
+            return None
+
+    def scrape_with_firefox(self, url, is_ra=False):
+        """Use Firefox with site-specific optimizations"""
+        logger.info(f"Fetching URL with Firefox: {url}")
+        
+        options = FirefoxOptions()
+        options.add_argument('--headless')
+        options.set_preference('browser.download.folderList', 2)
+        options.set_preference('browser.download.manager.showWhenStarting', False)
+        options.set_preference('log.level', 'ERROR')
+        
+        # Additional options for RA.co sites
+        if is_ra:
+            options.set_preference('javascript.enabled', True)
+            options.set_preference('dom.webdriver.enabled', False)
+            options.set_preference('useAutomationExtension', False)
+        
+        try:
+            from selenium.webdriver.firefox.service import Service
+            from selenium.webdriver.common.by import By
+            
+            service = Service(log_path=os.devnull)
+            driver = webdriver.Firefox(options=options, service=service)
+            
+            driver.get(url)
+            
+            # Wait for body to be present
+            WebDriverWait(driver, 30).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            
+            # Wait for page load
+            WebDriverWait(driver, 30).until(
+                lambda d: d.execute_script('return document.readyState') == 'complete'
+            )
+            
+            # Additional wait and checks for RA.co sites
+            if is_ra:
+                time.sleep(5)  # Wait for dynamic content
+                # Wait for specific RA.co elements
+                try:
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "[data-tracking-id='event-listing']"))
+                    )
+                except:
+                    logger.warning("Could not find RA.co event listings")
+            
+            html_content = driver.page_source
+            markdown = self.h.handle(html_content)
+            
+            content_length = len(markdown)
+            logger.info(f"Received {content_length} bytes of markdown from {url}")
+            
+            if content_length < 100:
+                logger.warning("Converted markdown is suspiciously small")
+                logger.debug(f"Content preview: {markdown[:200]}")
+            
+            return markdown
+            
+        except Exception as e:
+            logger.error(f"Error with Firefox scraping: {e}")
+            return None
+        finally:
+            try:
+                driver.quit()
+            except:
+                pass
