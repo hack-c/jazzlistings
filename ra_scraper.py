@@ -6,9 +6,12 @@ import logging
 import time
 import random
 
+logger = logging.getLogger('concert_app')
+
 def scrape_ra(url):
     """Scrape event data from RA"""
     try:
+        logger.info(f"Scraping RA: {url}")
         # Add headers to look more like a browser
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
