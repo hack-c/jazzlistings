@@ -1,14 +1,16 @@
+#!/usr/bin/env python3
 from firecrawl import FirecrawlApp
 from config import FIRECRAWL_API_KEY
-import requests
-from time import sleep
 import os
-import hashlib
+import sys
 import time
+import hashlib
+import requests
 from io import BytesIO
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import html2text
 from pdfminer.high_level import extract_text
 import logging
@@ -31,32 +33,36 @@ class Crawler:
         os.makedirs(self.cache_dir, exist_ok=True)
 
     def get_cache_filename(self, url):
+        """Get the cache filename for a URL."""
         hashed = hashlib.sha256(url.encode('utf-8')).hexdigest()
         return os.path.join(self.cache_dir, f"{hashed}.cache")
 
     def is_cache_valid(self, cache_file, max_age=86400):
+        """Check if cache file is valid and not expired."""
         if not os.path.exists(cache_file):
             return False
         mtime = os.path.getmtime(cache_file)
         return (time.time() - mtime) < max_age
 
     def save_cache(self, cache_file, content):
+        """Save content to cache file."""
         with open(cache_file, "wb") as f:
             f.write(content)
 
     def load_cache(self, cache_file):
+        """Load content from cache file."""
         with open(cache_file, "rb") as f:
             return f.read()
 
-    def fetch_with_selenium(self, url):
-        """Uses Selenium with Chrome in headless mode."""
+    def fetch_with_selenium(self, url, proxy=None):
+        """Uses Selenium with Firefox in headless mode."""
         options = Options()
         options.add_argument('--headless')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        
+        if proxy:
+            options.add_argument(f'--proxy-server={proxy}')
+
         try:
-            driver = webdriver.Chrome(options=options)
+            driver = webdriver.Firefox(options=options)
             driver.get(url)
             WebDriverWait(driver, 30).until(
                 lambda d: d.execute_script('return document.readyState') == 'complete'
@@ -72,12 +78,13 @@ class Crawler:
             except:
                 pass
 
-    def fetch_with_requests(self, url):
+    def fetch_with_requests(self, url, proxy=None):
         """Uses Requests to get the raw content."""
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Firefox/91.0'
         }
-        response = requests.get(url, headers=headers, timeout=30)
+        proxies = {"http": proxy, "https": proxy} if proxy else None
+        response = requests.get(url, headers=headers, proxies=proxies, timeout=60)
         response.raise_for_status()
         return response.content, response.headers.get("Content-Type", "")
 
@@ -94,18 +101,14 @@ class Crawler:
         return h.handle(html_content)
 
     def scrape_venue(self, url):
-        """
-        Fetch the given URL and return the Markdown content.
-        First tries Firecrawl, falls back to direct scraping.
-        """
-        max_retries = 3
-        retry_delay = 1
+        """Fetch the given URL and return the Markdown content."""
+        cache_file = self.get_cache_filename(url)
         
         # Try Firecrawl first
         try:
             logger.info("Attempting Firecrawl scrape")
             scrape_result = self.app.scrape_url(url, params={'formats': ['markdown']})
-            sleep(6)
+            time.sleep(6)
             if 'markdown' in scrape_result:
                 return scrape_result['markdown']
         except Exception as e:
@@ -113,33 +116,28 @@ class Crawler:
                 logger.info("Firecrawl credits exhausted, falling back to direct scraping")
             else:
                 logger.warning(f"Firecrawl error: {e}")
-        
-        # Fallback to direct scraping
-        logger.info("Using direct scraping")
-        for attempt in range(max_retries):
-            try:
-                # Try Selenium first
-                try:
-                    html_content = self.fetch_with_selenium(url)
-                    return self.convert_html_to_markdown(html_content)
-                except Exception as e:
-                    logger.warning(f"Selenium failed, trying Requests: {e}")
-                    html_bytes, _ = self.fetch_with_requests(url)
-                    return self.convert_html_to_markdown(html_bytes.decode("utf-8", errors="replace"))
-                
-            except Exception as e:
-                logger.error(f"Attempt {attempt + 1} failed: {e}")
-                if attempt < max_retries - 1:
-                    sleep(retry_delay)
-                    retry_delay *= 2
-        
-        logger.error(f"All scraping attempts failed for {url}")
-        return None
 
-    def crawl(self):
-        logger.info(f"Scraping {self.venue['name']} using {self.__class__.__name__}")
-        # ... crawling code ...
-        
-        logger.info(f"Found {len(concerts)} concerts at {self.venue['name']}")
-        for concert in concerts:
-            logger.info(f"Concert: {concert['artist']} at {concert['date']} {concert['time']}")
+        # Check cache
+        if self.is_cache_valid(cache_file):
+            logger.info("Using cached content")
+            cached_content = self.load_cache(cache_file)
+            if url.lower().endswith(".pdf"):
+                return self.extract_text_from_pdf(cached_content)
+            return self.convert_html_to_markdown(cached_content.decode("utf-8", errors="replace"))
+
+        # Fetch content based on type
+        if url.lower().endswith(".pdf"):
+            pdf_bytes, _ = self.fetch_with_requests(url)
+            text = self.extract_text_from_pdf(pdf_bytes)
+            self.save_cache(cache_file, pdf_bytes)
+            return text
+        else:
+            try:
+                html_content = self.fetch_with_selenium(url)
+            except Exception as e:
+                logger.warning(f"Selenium failed, trying Requests: {e}")
+                html_bytes, _ = self.fetch_with_requests(url)
+                html_content = html_bytes.decode("utf-8", errors="replace")
+            
+            self.save_cache(cache_file, html_content.encode("utf-8"))
+            return self.convert_html_to_markdown(html_content)
