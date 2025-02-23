@@ -36,30 +36,37 @@ def init_db():
         print("Running database migrations...")
         db = SessionLocal()
         try:
-            # Add new columns to venues table
-            from sqlalchemy import Column, String, JSON, DateTime
-            add_column(engine, 'venues', Column('neighborhood', String))
-            add_column(engine, 'venues', Column('genres', JSON))
+            # Set timeout for SQLite locks
+            db.execute(text("PRAGMA busy_timeout = 5000"))
             
-            # Populate venue data
-            from migrations.add_venue_fields import upgrade as venue_upgrade
-            venue_upgrade()
-            print("Venue data population complete")
+            # Add columns directly with SQL
+            db.execute(text("""
+                ALTER TABLE venues ADD COLUMN IF NOT EXISTS neighborhood VARCHAR;
+                ALTER TABLE venues ADD COLUMN IF NOT EXISTS genres JSON;
+            """))
             
-            # Initialize any NULL JSON columns with empty lists
-            with engine.begin() as conn:
-                # Update venues that still have NULL neighborhoods
-                conn.execute(text("""
-                    UPDATE venues 
-                    SET neighborhood = 'Other'
-                    WHERE neighborhood IS NULL
-                """))
-                conn.execute(text("""
-                    UPDATE venues 
-                    SET genres = '[]' 
-                    WHERE genres IS NULL
-                """))
-                
+            # Update venue data
+            from migrations.add_venue_fields import venue_data
+            
+            # Update in batches to avoid locks
+            for venue in db.query(Venue).all():
+                if venue.name in venue_data:
+                    venue.neighborhood = venue_data[venue.name]['neighborhood']
+                    venue.genres = venue_data[venue.name]['genres']
+            
+            # Set default values for NULL fields
+            db.execute(text("""
+                UPDATE venues 
+                SET neighborhood = 'Other'
+                WHERE neighborhood IS NULL OR neighborhood = '';
+            """))
+            
+            db.execute(text("""
+                UPDATE venues 
+                SET genres = '[]'
+                WHERE genres IS NULL;
+            """))
+            
             db.commit()
             print("Database migration successful")
             
@@ -76,6 +83,8 @@ def get_db():
     """Get a new database session."""
     db = SessionLocal()
     try:
+        # Set a shorter timeout for SQLite locks
+        db.execute(text("PRAGMA busy_timeout = 5000"))
         yield db
     finally:
         db.close()
