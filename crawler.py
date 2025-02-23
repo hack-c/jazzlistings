@@ -60,9 +60,19 @@ class Crawler:
         options.add_argument('--headless')
         if proxy:
             options.add_argument(f'--proxy-server={proxy}')
+        
+        # Add Firefox-specific options
+        options.set_preference('browser.download.folderList', 2)
+        options.set_preference('browser.download.manager.showWhenStarting', False)
+        # Suppress geckodriver version warnings
+        options.set_preference('log.level', 'ERROR')
 
         try:
-            driver = webdriver.Firefox(options=options)
+            # Use Service class to configure geckodriver
+            from selenium.webdriver.firefox.service import Service
+            service = Service(log_path=os.devnull)  # Suppress geckodriver logs
+            driver = webdriver.Firefox(options=options, service=service)
+            
             driver.get(url)
             WebDriverWait(driver, 30).until(
                 lambda d: d.execute_script('return document.readyState') == 'complete'
@@ -74,7 +84,8 @@ class Crawler:
             raise
         finally:
             try:
-                driver.quit()
+                if 'driver' in locals():
+                    driver.quit()
             except:
                 pass
 

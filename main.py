@@ -223,19 +223,21 @@ def process_venue(venue_info, session):
             
         logging.info(f"Processing {venue_name}")
         
-        # Try custom scraper first if available
         concert_data = []
         if has_custom_scraper(venue_name, venue_url):
-            logging.info(f"Using custom scraper for {venue_name}")
             concert_data = use_custom_scraper(venue_name, venue_url)
         else:
-            # Use Firecrawl for other venues
-            logging.info(f"Using Firecrawl scraper for {venue_name}")
-            concert_data = use_firecrawl(venue_url, venue_name, venue_info)
+            crawler = Crawler()
+            markdown_content = crawler.scrape_venue(venue_url)
+            if markdown_content:
+                concert_data = parse_markdown(markdown_content, venue_info)
         
         if concert_data:
             store_concert_data(session, concert_data, venue_info)
             logging.info(f"Completed processing {venue_name}")
+            # Update last_scraped timestamp
+            venue.last_scraped = datetime.now()
+            session.commit()
         else:
             logging.info(f"No concerts found for {venue_name}")
             
