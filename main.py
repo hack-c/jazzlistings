@@ -115,6 +115,12 @@ def kill_existing_scrapers():
 def index():
     db = SessionLocal()
     try:
+        # Add debug logging
+        logging.info("Checking venue data:")
+        venues = db.query(Venue).all()
+        for venue in venues:
+            logging.info(f"Venue: {venue.name}, Neighborhood: {venue.neighborhood}, Genres: {venue.genres}")
+
         # Use Eastern timezone for date comparisons
         eastern = pytz.timezone('America/New_York')
         now = datetime.now(eastern)

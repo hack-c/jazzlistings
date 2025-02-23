@@ -200,8 +200,7 @@ def upgrade():
             },
             'Nublu 151': {
                 'neighborhood': 'East Village',
-                'genres': ['Jazz']
-            }
+                'genres': ['Jazz']         }
         }
 
         # First, update existing venues
@@ -209,7 +208,7 @@ def upgrade():
             if venue.name in venue_data:
                 venue.neighborhood = venue_data[venue.name]['neighborhood']
                 venue.genres = venue_data[venue.name]['genres']
-                logging.info(f"Updated existing venue: {venue.name}")
+                logging.info(f"Updated existing venue: {venue.name} with neighborhood: {venue.neighborhood}")
             else:
                 logging.warning(f"No data found for existing venue: {venue.name}")
 
@@ -220,21 +219,20 @@ def upgrade():
                 new_venue = Venue(
                     name=name,
                     neighborhood=data['neighborhood'],
-                    genres=data['genres'],
-                    website_url=None  # You might want to add website URLs to venue_data
+                    genres=data['genres']
                 )
                 db.add(new_venue)
-                logging.info(f"Added new venue: {name}")
-        
+                logging.info(f"Added new venue: {name} with neighborhood: {data['neighborhood']}")
+
         db.commit()
-        print("Successfully updated venue data")
-        
+
         # Verify the update
+        logging.info("Verifying venue data after update:")
         for venue in db.query(Venue).all():
-            print(f"Venue: {venue.name}, Neighborhood: {venue.neighborhood}, Genres: {venue.genres}")
-        
+            logging.info(f"Venue: {venue.name}, Neighborhood: {venue.neighborhood}, Genres: {venue.genres}")
+
     except Exception as e:
-        print(f"Error updating venue data: {e}")
+        logging.error(f"Error updating venue data: {e}")
         db.rollback()
     finally:
         db.close()

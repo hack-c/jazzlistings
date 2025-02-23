@@ -31,7 +31,6 @@ def add_column(engine, table_name, column):
 def init_db():
     """Initialize the database"""
     try:
-        # Create tables if they don't exist (won't affect existing tables)
         Base.metadata.create_all(engine)
         
         print("Running database migrations...")
@@ -41,35 +40,26 @@ def init_db():
             from sqlalchemy import Column, String, JSON, DateTime
             add_column(engine, 'venues', Column('neighborhood', String))
             add_column(engine, 'venues', Column('genres', JSON))
-            add_column(engine, 'venues', Column('last_scraped', DateTime))
             
-            # Add new columns to users table
-            add_column(engine, 'users', Column('preferred_venues', JSON))
-            add_column(engine, 'users', Column('preferred_genres', JSON))
-            add_column(engine, 'users', Column('preferred_neighborhoods', JSON))
-            
-            # Populate venue data if needed
+            # Populate venue data
             from migrations.add_venue_fields import upgrade as venue_upgrade
             venue_upgrade()
             print("Venue data population complete")
             
             # Initialize any NULL JSON columns with empty lists
             with engine.begin() as conn:
+                # Update venues that still have NULL neighborhoods
+                conn.execute(text("""
+                    UPDATE venues 
+                    SET neighborhood = 'Other'
+                    WHERE neighborhood IS NULL
+                """))
                 conn.execute(text("""
                     UPDATE venues 
                     SET genres = '[]' 
                     WHERE genres IS NULL
                 """))
-                conn.execute(text("""
-                    UPDATE users 
-                    SET preferred_venues = '[]',
-                        preferred_genres = '[]',
-                        preferred_neighborhoods = '[]'
-                    WHERE preferred_venues IS NULL
-                    OR preferred_genres IS NULL
-                    OR preferred_neighborhoods IS NULL
-                """))
-            
+                
             db.commit()
             print("Database migration successful")
             
