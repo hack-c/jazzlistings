@@ -834,12 +834,29 @@ def use_custom_scraper(venue_name, venue_url):
     """Use a custom scraper for a specific venue"""
     try:
         if venue_name == 'Village Vanguard':
-            from vanguard_scraper import scrape_vanguard  # Match the new function name
+            from vanguard_scraper import scrape_vanguard
             return scrape_vanguard()
         elif venue_name == 'Close Up':
             from closeup_scraper import scrape_closeup
             return scrape_closeup()
-        # ... other custom scrapers ...
+        elif venue_name == 'Knockdown Center':
+            from knockdown_scraper import scrape_knockdown
+            return scrape_knockdown()
+        elif venue_name == 'IFC Center':
+            from ifc_scraper import scrape_ifc
+            return scrape_ifc()
+        elif venue_name == 'Film Forum':
+            from film_forum_scraper import scrape_film_forum
+            return scrape_film_forum()
+        elif venue_name == 'Quad Cinema':
+            from quad_scraper import scrape_quad
+            return scrape_quad()
+        elif venue_name == 'Film at Lincoln Center':
+            from lincoln_scraper import scrape_lincoln
+            return scrape_lincoln()
+        elif 'ra.co' in venue_url:
+            from ra_scraper import scrape_ra
+            return scrape_ra(venue_url)
     except Exception as e:
         logging.error(f"Error using custom scraper for {venue_name}: {e}")
         return []
