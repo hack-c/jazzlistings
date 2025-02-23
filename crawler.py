@@ -174,55 +174,36 @@ class Crawler:
         
         options = FirefoxOptions()
         options.add_argument('--headless')
-        options.set_preference('browser.download.folderList', 2)
-        options.set_preference('browser.download.manager.showWhenStarting', False)
-        options.set_preference('log.level', 'ERROR')
-        
-        # Additional options for RA.co sites
-        if is_ra:
-            options.set_preference('javascript.enabled', True)
-            options.set_preference('dom.webdriver.enabled', False)
-            options.set_preference('useAutomationExtension', False)
+        options.set_preference('javascript.enabled', True)
+        options.set_preference('dom.webdriver.enabled', False)
+        options.set_preference('useAutomationExtension', False)
         
         try:
             from selenium.webdriver.firefox.service import Service
-            from selenium.webdriver.common.by import By
             
             service = Service(log_path=os.devnull)
             driver = webdriver.Firefox(options=options, service=service)
             
+            # Get the page
             driver.get(url)
             
-            # Wait for body to be present
-            WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
-            
-            # Wait for page load
+            # Simple wait for page load completion
             WebDriverWait(driver, 30).until(
                 lambda d: d.execute_script('return document.readyState') == 'complete'
             )
             
-            # Additional wait and checks for RA.co sites
-            if is_ra:
-                time.sleep(5)  # Wait for dynamic content
-                # Wait for specific RA.co elements
-                try:
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "[data-tracking-id='event-listing']"))
-                    )
-                except:
-                    logger.warning("Could not find RA.co event listings")
-            
+            # Get the rendered HTML
             html_content = driver.page_source
-            markdown = self.h.handle(html_content)
             
+            # Convert to markdown
+            h = html2text.HTML2Text()
+            h.ignore_links = False  # preserve hyperlinks
+            h.body_width = 0        # do not wrap text
+            markdown = h.handle(html_content)
+            
+            # Log the result
             content_length = len(markdown)
-            logger.info(f"Received {content_length} bytes of markdown from {url}")
-            
-            if content_length < 100:
-                logger.warning("Converted markdown is suspiciously small")
-                logger.debug(f"Content preview: {markdown[:200]}")
+            logger.info(f"Generated {content_length} bytes of markdown")
             
             return markdown
             
