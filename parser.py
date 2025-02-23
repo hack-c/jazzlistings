@@ -178,7 +178,7 @@ def parse_markdown(markdown_content, venue_info):
             ],
             max_tokens=16000,
             temperature=0,
-            response_format="json"
+            response_format={ "type": "json_object" }
         )
 
         # Parse the response
