@@ -4,6 +4,9 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from models import User
 from database import SessionLocal
+import logging
+
+logger = logging.getLogger('concert_app')
 
 auth = Blueprint('auth', __name__)
 
@@ -11,7 +14,8 @@ SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://localhost:5000/callback')
 
-def create_spotify_oauth():
+def get_spotify_oauth():
+    logger.info("Initializing Spotify OAuth")
     oauth = SpotifyOAuth(
         client_id=SPOTIFY_CLIENT_ID,
         client_secret=SPOTIFY_CLIENT_SECRET,
@@ -41,7 +45,7 @@ def login():
         print(f"Current request URL: {request.url}")
         print(f"Current request base URL: {request.base_url}")
         
-        sp_oauth = create_spotify_oauth()
+        sp_oauth = get_spotify_oauth()
         auth_url = sp_oauth.get_authorize_url()
         print(f"Generated Auth URL: {auth_url}\n")
         return redirect(auth_url)
@@ -63,7 +67,7 @@ def callback():
     print(f"Full request URL: {request.url}")
     print("Callback received!")  # Debug print
     print(f"Request args: {request.args}")  # Debug print
-    sp_oauth = create_spotify_oauth()
+    sp_oauth = get_spotify_oauth()
     code = request.args.get('code')
     if not code:
         print("No code received in callback")  # Debug print

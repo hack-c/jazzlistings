@@ -1,12 +1,16 @@
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, scoped_session
+import logging
 from config import DATABASE_URL
 from base import Base
 from models import Venue
-import json  # Add this import
+import json
 
-# Create the SQLAlchemy engine
-engine = create_engine(DATABASE_URL, echo=True)
+# Configure SQLAlchemy to only log errors
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+
+# Create the SQLAlchemy engine with echo=False to disable SQL logging
+engine = create_engine(DATABASE_URL, echo=False)
 
 # Venue data for initialization
 venue_data = {
@@ -158,7 +162,7 @@ def init_db():
                 print(f"Error removing duplicate events: {e}")
                 db.rollback()
 
-            # Update venues one at a time to avoid locks
+            # Update venues
             for venue in db.query(Venue).all():
                 try:
                     if venue.name in venue_data:
@@ -166,11 +170,11 @@ def init_db():
                             text("UPDATE venues SET neighborhood = :n, genres = :g WHERE id = :id"),
                             {
                                 'n': venue_data[venue.name]['neighborhood'],
-                                'g': json.dumps(venue_data[venue.name]['genres']),  # Convert list to JSON string
+                                'g': json.dumps(venue_data[venue.name]['genres']),
                                 'id': venue.id
                             }
                         )
-                        db.commit()  # Commit each update individually
+                        db.commit()
                 except Exception as e:
                     print(f"Error updating venue {venue.name}: {e}")
                     db.rollback()

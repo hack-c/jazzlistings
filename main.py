@@ -49,32 +49,12 @@ print(f"SPOTIFY_CLIENT_ID: {'set' if os.getenv('SPOTIFY_CLIENT_ID') else 'not se
 print(f"SPOTIFY_CLIENT_SECRET: {'set' if os.getenv('SPOTIFY_CLIENT_SECRET') else 'not set'}")
 print(f"SPOTIFY_REDIRECT_URI: {os.getenv('SPOTIFY_REDIRECT_URI')}")
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()
-    ]
-)
+# Configure root logger to only show WARNING and above
+logging.basicConfig(level=logging.WARNING)
 
-# Set SQLAlchemy logging to ERROR only
-logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
-logging.getLogger('sqlalchemy.engine').setLevel(logging.ERROR)
-logging.getLogger('sqlalchemy.pool').setLevel(logging.ERROR)
-logging.getLogger('sqlalchemy.orm').setLevel(logging.ERROR)
-logging.getLogger('sqlalchemy.dialects').setLevel(logging.ERROR)
-
-# Disable propagation to prevent duplicate logs
-logging.getLogger('sqlalchemy.engine.base.Engine').propagate = False
-
-# Optional: Keep other noisy loggers quiet
-logging.getLogger('urllib3').setLevel(logging.WARNING)
-logging.getLogger('requests').setLevel(logging.WARNING)
-logging.getLogger('werkzeug').setLevel(logging.WARNING)
-
-# Add this to prevent duplicate logging
-logging.getLogger('sqlalchemy.engine.base.Engine').propagate = False
+# Create a custom logger for application events
+app_logger = logging.getLogger('concert_app')
+app_logger.setLevel(logging.INFO)
 
 # Add at the very start of the file, right after imports
 def kill_existing_scrapers():

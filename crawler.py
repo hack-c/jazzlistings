@@ -13,6 +13,7 @@ import html2text
 from pdfminer.high_level import extract_text
 import logging
 
+logger = logging.getLogger('concert_app')
 
 class Crawler:
     """
@@ -105,9 +106,9 @@ class Crawler:
                         return scrape_result['markdown']
                 except Exception as e:
                     if "Insufficient credits" in str(e):
-                        logging.info("Firecrawl credits exhausted, falling back to direct scraping")
+                        logger.info("Firecrawl credits exhausted, falling back to direct scraping")
                     else:
-                        logging.error(f"Firecrawl error: {e}")
+                        logger.error(f"Firecrawl error: {e}")
 
                 # Fallback to direct scraping
                 cache_file = self.get_cache_filename(url)
@@ -129,7 +130,7 @@ class Crawler:
                     try:
                         html_content = self.fetch_with_selenium(url)
                     except Exception as e:
-                        logging.error(f"Selenium fetch failed, falling back to Requests. Error: {e}")
+                        logger.error(f"Selenium fetch failed, falling back to Requests. Error: {e}")
                         html_bytes, _ = self.fetch_with_requests(url)
                         html_content = html_bytes.decode("utf-8", errors="replace")
                     
@@ -143,14 +144,22 @@ class Crawler:
                     response.raise_for_status()
                     return self.convert_html_to_markdown(response.text)
                 except Exception as e:
-                    logging.error(f"Error on SSL fallback for {url}: {e}")
+                    logger.error(f"Error on SSL fallback for {url}: {e}")
                     
             except Exception as e:
-                logging.error(f"Attempt {attempt + 1} failed for {url}: {e}")
+                logger.error(f"Attempt {attempt + 1} failed for {url}: {e}")
                 if attempt < max_retries - 1:
                     sleep(retry_delay)
                     retry_delay *= 2  # Exponential backoff
                 continue
                 
-        logging.error(f"All attempts failed for {url}")
+        logger.error(f"All attempts failed for {url}")
         return None
+
+    def crawl(self):
+        logger.info(f"Scraping {self.venue['name']} using {self.__class__.__name__}")
+        # ... crawling code ...
+        
+        logger.info(f"Found {len(concerts)} concerts at {self.venue['name']}")
+        for concert in concerts:
+            logger.info(f"Concert: {concert['artist']} at {concert['date']} {concert['time']}")

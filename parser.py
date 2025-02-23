@@ -4,9 +4,18 @@ import json
 from openai import OpenAI
 import re
 from datetime import datetime, timedelta
+import logging
 
 openai.api_key = OPENAI_API_KEY
 client = OpenAI()
+
+logger = logging.getLogger('concert_app')
+
+class Parser:
+    def parse(self, content):
+        logger.info("Starting content parse")
+        # Replace print statements with logger
+        # Only log important parsing events and errors
 
 def parse_markdown(markdown_content, venue_info):
     """Parse markdown content into structured concert data."""
