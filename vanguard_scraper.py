@@ -218,7 +218,7 @@ def scrape_events(html):
                 })
     return events
 
-def scrape():
+def scrape_vanguard():
     """Main scraper function to be called from outside"""
     url = "https://villagevanguard.com/"
     response = requests.get(url)
@@ -227,5 +227,5 @@ def scrape():
     return scrape_events(html)
 
 if __name__ == "__main__":
-    events = scrape()
+    events = scrape_vanguard()
     print(json.dumps(events, indent=4)) 
