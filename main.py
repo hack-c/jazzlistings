@@ -828,7 +828,7 @@ def has_custom_scraper(venue_name, venue_url):
         'Quad Cinema': True,
         'Film at Lincoln Center': True  # Add Film at Lincoln Center
     }
-    return custom_scrapers.get(venue_name, False)
+    return custom_scrapers.get(venue_name, False) or 'ra.co' in venue_url
 
 def use_custom_scraper(venue_name, venue_url):
     """Use a custom scraper for a specific venue"""
