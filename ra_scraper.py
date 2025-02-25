@@ -13,27 +13,24 @@ logger = logging.getLogger('concert_app')
 def scrape_ra(url, max_retries=3):
     """Scrape event data from RA using their Next.js data"""
     user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Firefox/123.0',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_3) Firefox/123.0',
-        'Mozilla/5.0 (X11; Linux x86_64) Firefox/123.0',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Firefox/122.0',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2) Firefox/122.0',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
-        'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_3) AppleWebKit/605.1.15 Firefox/123.0',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Firefox/122.0',
-        'Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0'
+        # Mobile User Agents
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.6167.57 Mobile Safari/537.36',
+        # Desktop User Agents
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
     ]
     
-    # Shuffle user agents to randomize first attempt
+    # Shuffle user agents
     random.shuffle(user_agents)
     
     for attempt in range(max_retries):
         try:
             logger.info(f"Scraping RA: {url} (Attempt {attempt + 1}/{max_retries})")
             
-            # Random delay between attempts, longer for subsequent tries
-            delay = random.uniform(10 + attempt * 10, 30 + attempt * 15)
+            # Much longer initial delay
+            delay = random.uniform(45 + attempt * 20, 90 + attempt * 30)
             logger.info(f"Waiting {delay:.1f} seconds before scraping...")
             time.sleep(delay)
             
@@ -42,7 +39,14 @@ def scrape_ra(url, max_retries=3):
             firefox_options.add_argument('--headless')
             firefox_options.set_preference('javascript.enabled', True)
             
-            # Use next user agent from shuffled list
+            # Additional preferences to make it look more like a real browser
+            firefox_options.set_preference('dom.webdriver.enabled', False)
+            firefox_options.set_preference('useAutomationExtension', False)
+            firefox_options.set_preference('privacy.trackingprotection.enabled', False)
+            firefox_options.set_preference('network.http.referer.spoofSource', True)
+            firefox_options.set_preference('network.http.sendRefererHeader', 2)
+            
+            # Use next user agent
             current_agent = user_agents[attempt % len(user_agents)]
             firefox_options.set_preference('general.useragent.override', current_agent)
             logger.info(f"Using user agent: {current_agent}")
@@ -52,12 +56,22 @@ def scrape_ra(url, max_retries=3):
             driver = webdriver.Firefox(options=firefox_options)
             
             try:
+                # First visit the RA homepage
+                logger.info("Visiting RA homepage first...")
+                driver.get('https://ra.co')
+                time.sleep(random.uniform(3, 7))
+                
+                # Then visit the venue page
                 driver.get(url)
                 
-                # Random wait between 5-15 seconds for dynamic content
-                wait_time = random.uniform(5, 15)
+                # Longer wait for content
+                wait_time = random.uniform(10, 20)
                 logger.info(f"Waiting {wait_time:.1f} seconds for content to load...")
                 time.sleep(wait_time)
+                
+                # Scroll the page a bit to simulate human behavior
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
+                time.sleep(random.uniform(2, 5))
                 
                 html = driver.page_source
                 
