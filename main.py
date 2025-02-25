@@ -691,7 +691,7 @@ def clean_placeholder_artists():
     finally:
         db.close()
 
-@app.route('/preferences')
+@app.route('/preferences', methods=['GET', 'POST'])
 def preferences():
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
@@ -699,54 +699,41 @@ def preferences():
     db = SessionLocal()
     try:
         user = db.query(User).filter_by(id=session['user_id']).first()
+        
+        if request.method == 'POST':
+            # Process form submission
+            user.preferred_venues = request.form.getlist('venues')
+            user.preferred_neighborhoods = request.form.getlist('neighborhoods')
+            user.preferred_genres = request.form.getlist('genres')
+            db.commit()
+            return redirect(url_for('index'))
+        
+        # Get all venues for the form
         venues = db.query(Venue).order_by(Venue.name).all()
         
-        # Define known neighborhoods
-        known_neighborhoods = [
-            'Greenwich Village',
-            'Theater District',
-            'Upper West Side',
-            'Flatiron District',
-            'Bushwick',
-            'Williamsburg',
-            'Downtown Brooklyn',
-            'Midtown',
-            'Lower East Side',
-            'East Village',
-            'Chelsea'
-        ]
+        # Get unique neighborhoods
+        neighborhoods = db.query(Venue.neighborhood).distinct().order_by(Venue.neighborhood)
+        neighborhoods = [n[0] for n in neighborhoods if n[0]]  # Filter out None/empty
         
-        # Get neighborhoods from both venues and known list
-        venue_neighborhoods = set(venue.neighborhood for venue in venues if venue.neighborhood)
-        all_neighborhoods = sorted(venue_neighborhoods.union(known_neighborhoods))
+        # Get unique genres from all venues
+        all_genres = set()
+        for venue in venues:
+            if venue.genres:
+                all_genres.update(venue.genres)
         
-        # Simplified genres
-        genres = ['Jazz', 'Clubs', 'Galleries', 'Museums']
+        # Make sure Movies is included
+        all_genres.add('Movies')
         
-        return render_template('preferences.html',
-                             user=user,
-                             venues=venues,
-                             neighborhoods=all_neighborhoods,
-                             genres=genres)
-    finally:
-        db.close()
-
-@app.route('/save_preferences', methods=['POST'])
-def save_preferences():
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
+        # Sort genres alphabetically
+        genres = sorted(all_genres)
         
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter_by(id=session['user_id']).first()
-        
-        # Update user preferences
-        user.preferred_venues = request.form.getlist('venues')
-        user.preferred_neighborhoods = request.form.getlist('neighborhoods')
-        user.preferred_genres = request.form.getlist('genres')
-        
-        db.commit()
-        return redirect(url_for('index'))
+        return render_template(
+            'preferences.html',
+            user=user,
+            venues=venues,
+            neighborhoods=neighborhoods,
+            genres=genres
+        )
     finally:
         db.close()
 
