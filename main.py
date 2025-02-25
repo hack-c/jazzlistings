@@ -27,6 +27,7 @@ import logging
 import threading
 import signal
 import psutil
+import sys
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -328,26 +329,38 @@ def process_venue_batch(batch, session):
     logging.info(f"Processing batch of {len(batch)} venues")
     processed_venues = set()  # Track which venues we've processed
     
-    with ThreadPoolExecutor(max_workers=1) as executor:  # Process one at a time
-        for venue_info in batch:
+    # Separate RA venues and non-RA venues
+    ra_venues = [v for v in batch if 'ra.co' in v['url']]
+    other_venues = [v for v in batch if 'ra.co' not in v['url']]
+    
+    # Randomize order of RA venues
+    random.shuffle(ra_venues)
+    
+    # Process non-RA venues first
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        for venue_info in other_venues + ra_venues:  # Process regular venues, then RA
             venue_name = venue_info['name']
             
-            # Skip if already processed
             if venue_name in processed_venues:
                 logging.debug(f"Skipping already processed venue: {venue_name}")
                 continue
                 
             try:
-                # Submit the task and wait for it to complete
                 future = executor.submit(process_venue, venue_info, session)
-                future.result()  # Wait for completion
+                future.result()
                 processed_venues.add(venue_name)
                 logging.info(f"Completed processing {venue_name}")
+                
+                # Longer delay for RA venues
+                if 'ra.co' in venue_info['url']:
+                    delay = random.uniform(30, 60)
+                    logging.info(f"RA venue processed, waiting {delay:.1f} seconds...")
+                    time.sleep(delay)
+                else:
+                    time.sleep(random.uniform(1, 3))
+                    
             except Exception as e:
                 logging.error(f"Error processing {venue_name}: {e}")
-            
-            # Rate limiting
-            time.sleep(random.uniform(1, 3))
 
 def main():
     """Main function that orchestrates the crawling, parsing, and storing of concert data."""
@@ -861,10 +874,23 @@ def use_custom_scraper(venue_name, venue_url):
         logging.error(f"Error using custom scraper for {venue_name}: {e}")
         return []
 
+def reset_database():
+    """Drop all tables and recreate them"""
+    db_path = "concerts.db"  # Adjust if your DB has a different name
+    if os.path.exists(db_path):
+        print(f"Deleting existing database at {db_path}")
+        os.remove(db_path)
+        print("Database file deleted, will be recreated")
+    else:
+        print("No database file found to delete")
+
 if __name__ == '__main__':
     import sys
     from werkzeug.serving import run_simple
     from werkzeug.middleware.proxy_fix import ProxyFix
+    
+    if "--reset-db" in sys.argv or os.environ.get("RESET_DATABASE") == "true":
+        reset_database()
     
     # Only run scraper in the main process, not in the reloader
     if not os.environ.get('WERKZEUG_RUN_MAIN'):
