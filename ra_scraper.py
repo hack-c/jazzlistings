@@ -3,7 +3,7 @@ import json
 from bs4 import BeautifulSoup
 from datetime import datetime
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
 import logging
 
 logger = logging.getLogger('concert_app')
@@ -13,15 +13,22 @@ def scrape_ra(url):
     try:
         logger.info(f"Scraping RA: {url}")
         
-        # Set up Chrome
-        chrome_options = Options()
+        # Set up Firefox
+        firefox_options = FirefoxOptions()
+        firefox_options.add_argument('--headless')
+        firefox_options.set_preference('javascript.enabled', True)
         
         # Fetch the page
-        logger.info("Fetching page with Chrome...")
-        driver = webdriver.Chrome(options=chrome_options)
-        driver.get(url)
-        html = driver.page_source
-        driver.quit()
+        logger.info("Fetching page with Firefox...")
+        driver = webdriver.Firefox(options=firefox_options)
+        
+        try:
+            driver.get(url)
+            # Wait a bit for dynamic content
+            driver.implicitly_wait(5)
+            html = driver.page_source
+        finally:
+            driver.quit()
         
         # Parse HTML
         soup = BeautifulSoup(html, "html.parser")
