@@ -518,9 +518,20 @@ def store_concert_data(session, concert_data_list, venue_info):
         venue = Venue(
             name=venue_name,
             address=venue_info.get('address', ''),
-            website_url=venue_info['url']
+            website_url=venue_info['url'],
+            neighborhood=venue_info.get('neighborhood', ''),
+            genres=venue_info.get('genres', [])
         )
         session.add(venue)
+        session.commit()
+    else:
+        # Update venue fields if they're missing but provided in venue_info
+        if not venue.neighborhood and venue_info.get('neighborhood'):
+            venue.neighborhood = venue_info.get('neighborhood')
+        if not venue.genres and venue_info.get('genres'):
+            venue.genres = venue_info.get('genres')
+        if venue_info.get('address') and not venue.address:
+            venue.address = venue_info.get('address')
         session.commit()
 
     for concert_data in concert_data_list:
@@ -691,6 +702,19 @@ def clean_placeholder_artists():
     finally:
         db.close()
 
+@app.route('/admin/update_venues', methods=['GET'])
+def admin_update_venues():
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    try:
+        update_venue_data()
+        flash("Venue data updated successfully!")
+        return redirect(url_for('index'))
+    except Exception as e:
+        flash(f"Error updating venue data: {str(e)}")
+        return redirect(url_for('index'))
+
 @app.route('/preferences', methods=['GET', 'POST'])
 def preferences():
     if 'user_id' not in session:
@@ -699,26 +723,42 @@ def preferences():
     db = SessionLocal()
     try:
         user = db.query(User).filter_by(id=session['user_id']).first()
+        if not user:
+            flash("User not found.")
+            return redirect(url_for('auth.login'))
         
         if request.method == 'POST':
-            # Process form submission
-            user.preferred_venues = request.form.getlist('venues')
-            user.preferred_neighborhoods = request.form.getlist('neighborhoods')
-            user.preferred_genres = request.form.getlist('genres')
-            db.commit()
-            return redirect(url_for('index'))
+            try:
+                # Convert venue IDs to strings to ensure consistent storage
+                # This prevents issues with type comparison in templates
+                venue_ids = [str(id) for id in request.form.getlist('venues')]
+                neighborhoods = request.form.getlist('neighborhoods')
+                genres = request.form.getlist('genres')
+                
+                # Update user preferences
+                user.preferred_venues = venue_ids
+                user.preferred_neighborhoods = neighborhoods
+                user.preferred_genres = genres
+                
+                db.commit()
+                flash("Preferences saved successfully!")
+                return redirect(url_for('index'))
+            except Exception as e:
+                db.rollback()
+                flash(f"Error saving preferences: {str(e)}")
+                logging.error(f"Error saving preferences: {str(e)}")
         
         # Get all venues for the form
         venues = db.query(Venue).order_by(Venue.name).all()
         
-        # Get unique neighborhoods
+        # Get unique neighborhoods - ensure they're not empty/None
         neighborhoods = db.query(Venue.neighborhood).distinct().order_by(Venue.neighborhood)
-        neighborhoods = [n[0] for n in neighborhoods if n[0]]  # Filter out None/empty
+        neighborhoods = [n[0] for n in neighborhoods if n[0] and n[0].strip()]
         
         # Get unique genres from all venues
         all_genres = set()
         for venue in venues:
-            if venue.genres:
+            if venue.genres and isinstance(venue.genres, list):
                 all_genres.update(venue.genres)
         
         # Make sure Movies is included
@@ -734,6 +774,10 @@ def preferences():
             neighborhoods=neighborhoods,
             genres=genres
         )
+    except Exception as e:
+        logging.error(f"Error in preferences route: {str(e)}")
+        flash("An error occurred. Please try again.")
+        return redirect(url_for('index'))
     finally:
         db.close()
 
@@ -785,17 +829,42 @@ def generate_calendar_links(concert, venue_name, artist_names):
     }
 
 def get_or_create_venue(session, venue_info):
-    """Get existing venue or create a new one"""
+    """Get existing venue or create a new one, and update missing fields"""
     venue = session.query(Venue).filter_by(name=venue_info['name']).first()
     if not venue:
+        # Create new venue with all available info
         venue = Venue(
             name=venue_info['name'],
             website_url=venue_info['url'],
+            address=venue_info.get('address', ''),
             neighborhood=venue_info.get('neighborhood', ''),
             genres=venue_info.get('genres', [])
         )
         session.add(venue)
         session.commit()
+    else:
+        # Update venue fields if they're missing or empty but provided in venue_info
+        updated = False
+        
+        if venue_info.get('neighborhood') and (not venue.neighborhood or venue.neighborhood == ''):
+            venue.neighborhood = venue_info.get('neighborhood')
+            updated = True
+            
+        if venue_info.get('genres') and (not venue.genres or venue.genres == [] or venue.genres == ['']):
+            venue.genres = venue_info.get('genres')
+            updated = True
+            
+        if venue_info.get('address') and (not venue.address or venue.address == ''):
+            venue.address = venue_info.get('address')
+            updated = True
+            
+        if venue_info.get('website_url') and (not venue.website_url or venue.website_url == ''):
+            venue.website_url = venue_info.get('website_url')
+            updated = True
+            
+        if updated:
+            session.commit()
+            
     return venue
 
 def check_existing_concerts(session, venue_name):
@@ -861,6 +930,84 @@ def use_custom_scraper(venue_name, venue_url):
         logging.error(f"Error using custom scraper for {venue_name}: {e}")
         return []
 
+def update_venue_data():
+    """Utility function to ensure all venues have appropriate data"""
+    db = SessionLocal()
+    try:
+        # Define known neighborhoods for venues (from migrations/add_venue_fields.py)
+        venue_data = {
+            'Village Vanguard': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
+            'Smalls Jazz Club': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
+            'Dizzy\'s Club': {'neighborhood': 'Columbus Circle', 'genres': ['Jazz']},
+            'Mezzrow Jazz Club': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
+            'The Jazz Gallery': {'neighborhood': 'Flatiron', 'genres': ['Jazz']},
+            'Ornithology Cafe': {'neighborhood': 'Bushwick', 'genres': ['Jazz']},
+            'Ornithology Jazz Club': {'neighborhood': 'Bushwick', 'genres': ['Jazz']},
+            'Bar LunÀtico': {'neighborhood': 'Bedford-Stuyvesant', 'genres': ['Jazz']},
+            'Bar Bayeux': {'neighborhood': 'Prospect Heights', 'genres': ['Jazz']},
+            'The Owl Music Parlor': {'neighborhood': 'Prospect Heights', 'genres': ['Jazz']},
+            'Marians Jazz Room': {'neighborhood': 'Williamsburg', 'genres': ['Jazz']},
+            'Zinc Bar': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
+            'The Stone': {'neighborhood': 'East Village', 'genres': ['Jazz']},
+            'Nublu 151': {'neighborhood': 'East Village', 'genres': ['Jazz']},
+            'Birdland': {'neighborhood': 'Theater District', 'genres': ['Jazz']},
+            'Room 623 at B2 Harlem': {'neighborhood': 'Harlem', 'genres': ['Jazz']},
+            'Smoke Jazz & Supper Club': {'neighborhood': 'Upper West Side', 'genres': ['Jazz']},
+            'Drom': {'neighborhood': 'East Village', 'genres': ['Jazz']},
+            'Roulette': {'neighborhood': 'Downtown Brooklyn', 'genres': ['Jazz']},
+            'The Django': {'neighborhood': 'Tribeca', 'genres': ['Jazz']},
+            'Joe\'s Pub': {'neighborhood': 'NoHo', 'genres': ['Jazz']},
+            'Minton\'s Playhouse': {'neighborhood': 'Harlem', 'genres': ['Jazz']},
+            'National Sawdust': {'neighborhood': 'Williamsburg', 'genres': ['Jazz']},
+            'The Cutting Room': {'neighborhood': 'Flatiron', 'genres': ['Jazz']},
+            'Symphony Space': {'neighborhood': 'Upper West Side', 'genres': ['Jazz']},
+            'Le Poisson Rouge': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
+            'Knockdown Center': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+            'Bossa Nova Civic Club': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+            'House of Yes': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+            'Jupiter Disco': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+            'Public Records': {'neighborhood': 'Gowanus', 'genres': ['Clubs']},
+            'The Sultan Room': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+            'Mansions': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+            'Close Up': {'neighborhood': 'Lower East Side', 'genres': ['Jazz']},
+            'IFC Center': {'neighborhood': 'Greenwich Village', 'genres': ['Movies']},
+            'Film Forum': {'neighborhood': 'Greenwich Village', 'genres': ['Movies']},
+            'Quad Cinema': {'neighborhood': 'Greenwich Village', 'genres': ['Movies']},
+            'Film at Lincoln Center': {'neighborhood': 'Upper West Side', 'genres': ['Movies']}
+        }
+        
+        # Update venues with missing data
+        venues = db.query(Venue).all()
+        updated_count = 0
+        
+        for venue in venues:
+            if venue.name in venue_data:
+                data = venue_data[venue.name]
+                updated = False
+                
+                if not venue.neighborhood and data.get('neighborhood'):
+                    venue.neighborhood = data['neighborhood']
+                    updated = True
+                    
+                if (not venue.genres or venue.genres == []) and data.get('genres'):
+                    venue.genres = data['genres']
+                    updated = True
+                    
+                if updated:
+                    updated_count += 1
+                    
+        if updated_count > 0:
+            db.commit()
+            print(f"Updated data for {updated_count} venues")
+        else:
+            print("No venues needed updates")
+            
+    except Exception as e:
+        print(f"Error updating venue data: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
 def reset_database():
     """Drop all tables and recreate them"""
     db_path = "concerts.db"  # Adjust if your DB has a different name
@@ -885,6 +1032,9 @@ if __name__ == '__main__':
     else:
         # Kill any existing scrapers first
         kill_existing_scrapers()
+        
+        # Update venue data to ensure neighborhoods and genres are set correctly
+        update_venue_data()
         
         # Initialize based on arguments
         init_db()
