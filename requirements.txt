@@ -21,3 +21,8 @@ psutil==5.9.8
 fake-useragent==1.4.0
 cloudscraper==1.2.71
 undetected-chromedriver==3.5.4
+selenium
+webdriver-manager
+cloudscraper
+html2text
+pdfminer
