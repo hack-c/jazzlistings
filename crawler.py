@@ -144,6 +144,14 @@ class Crawler:
         h.body_width = 0
         return h.handle(html_content)
 
+    def html_to_markdown(self, html):
+        """Convert HTML to Markdown."""
+        h = html2text.HTML2Text()
+        h.ignore_links = False
+        h.body_width = 0
+        markdown = h.handle(html)
+        return markdown
+
     def scrape_venue(self, url):
         """Scrape a venue's website for concert information"""
         try:
