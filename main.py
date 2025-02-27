@@ -406,6 +406,10 @@ def process_venue_batch(batch, session):
     # Randomize order of RA venues
     random.shuffle(ra_venues)
     
+    # Log threading information
+    logging.info(f"PERFORMANCE: Using ThreadPoolExecutor with max_workers=1 (sequential processing)")
+    logging.info(f"PERFORMANCE: Batch details - {len(other_venues)} non-RA venues, {len(ra_venues)} RA venues")
+    
     # Process non-RA venues first
     with ThreadPoolExecutor(max_workers=1) as executor:
         for venue_info in other_venues + ra_venues:  # Process regular venues, then RA
@@ -421,13 +425,24 @@ def process_venue_batch(batch, session):
                 processed_venues.add(venue_name)
                 logging.info(f"Completed processing {venue_name}")
                 
+                # Add timing logs
+                scrape_end_time = datetime.now()
+                
                 # Longer delay for RA venues
                 if 'ra.co' in venue_info['url']:
                     delay = random.uniform(30, 60)
-                    logging.info(f"RA venue processed, waiting {delay:.1f} seconds...")
+                    logging.info(f"PERFORMANCE: RA venue {venue_name} processed, about to sleep {delay:.1f} seconds...")
+                    venue_type = "RA"
                     time.sleep(delay)
                 else:
-                    time.sleep(random.uniform(1, 3))
+                    delay = random.uniform(1, 3)
+                    logging.info(f"PERFORMANCE: Non-RA venue {venue_name} processed, about to sleep {delay:.1f} seconds...")
+                    venue_type = "Standard"
+                    time.sleep(delay)
+                    
+                # Log total time including sleep
+                total_time = (datetime.now() - scrape_end_time).total_seconds() + delay
+                logging.info(f"PERFORMANCE: {venue_type} venue {venue_name} - sleep overhead: {delay:.1f}s, total wait: {total_time:.1f}s")
                     
             except Exception as e:
                 logging.error(f"Error processing {venue_name}: {e}")
@@ -625,6 +640,9 @@ def store_concert_data(session, concert_data_list, venue_info):
         try:
             concert_date = datetime.strptime(date_str, '%Y-%m-%d').date()
             
+            # Add detailed logging to debug duplication issues
+            print(f"\nCHECKING FOR DUPLICATES: {venue_name}, {concert_date}, '{artist_name}'")
+            
             # Check for existing concert with same venue, date and artist
             existing_concert = (
                 session.query(Concert)
@@ -636,6 +654,12 @@ def store_concert_data(session, concert_data_list, venue_info):
                 )
                 .first()
             )
+            
+            # Log if we found a duplicate
+            if existing_concert:
+                existing_artists = [a.name for a in existing_concert.artists]
+                print(f"DUPLICATE FOUND: {venue_name}, {concert_date}, Artists: {existing_artists}")
+                print(f"CONSTRAINT CHECK: UniqueConstraint is on venue_id={venue.id} and date={concert_date}")
 
             if existing_concert:
                 print(f"Concert already exists for {artist_name} at {venue_name} on {concert_date}")

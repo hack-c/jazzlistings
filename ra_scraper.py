@@ -287,8 +287,11 @@ def scrape_ra(url, max_retries=5):
             base_delay = 60 + (attempt * 30)  # Starts at 60s, increases by 30s each attempt
             jitter = random.uniform(-10, 20)  # Add randomness
             delay = base_delay + jitter
-            logger.info(f"Waiting {delay:.1f} seconds before scraping attempt {attempt + 1}...")
+            logger.info(f"PERFORMANCE: RA scraper waiting {delay:.1f} seconds before attempt {attempt + 1}...")
+            start_time = datetime.now()
             time.sleep(delay)
+            actual_delay = (datetime.now() - start_time).total_seconds()
+            logger.info(f"PERFORMANCE: RA scraper delay completed. Target: {delay:.1f}s, Actual: {actual_delay:.1f}s")
             
             # Setup Firefox options
             firefox_options = FirefoxOptions()

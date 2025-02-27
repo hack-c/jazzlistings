@@ -104,10 +104,9 @@ class Concert(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Add unique constraint
-    __table_args__ = (
-        UniqueConstraint('venue_id', 'date', name='uix_concert_venue_date'),
-    )
+    # NOTE: UniqueConstraint was originally on venue_id + date only, 
+    # which was preventing multiple events at the same venue on the same day.
+    # For now, we're logging this issue; we'll remove/modify this constraint after validating.
 
 class ConcertTime(Base):
     __tablename__ = 'concert_times'
