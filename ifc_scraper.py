@@ -53,6 +53,7 @@ def scrape_ifc():
                     # Get showtimes
                     times_ul = details.find("ul", class_="times")
                     if times_ul:
+                        times = []
                         for time_li in times_ul.find_all("li"):
                             a_tag = time_li.find("a")
                             if a_tag:
@@ -60,6 +61,7 @@ def scrape_ifc():
                                 try:
                                     dt_time = datetime.strptime(raw_time, "%I:%M %p")
                                     time_formatted = dt_time.strftime("%I:%M %p")
+                                    times.append(time_formatted)
                                 except Exception:
                                     time_formatted = raw_time
                                     
@@ -68,7 +70,7 @@ def scrape_ifc():
                                 movie_show = {
                                     "artist": movie_name,
                                     "date": formatted_date,
-                                    "time": time_formatted,
+                                    "times": times,
                                     "ticket_link": ticket_link,
                                 }
                                 results.append(movie_show)
@@ -94,4 +96,4 @@ if __name__ == "__main__":
     # Test the scraper
     showtimes = scrape_ifc()
     for show in showtimes:
-        print(show) 
+        print(show)
