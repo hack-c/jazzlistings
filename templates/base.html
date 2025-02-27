@@ -369,6 +369,42 @@
             font-size: 24px;
             font-weight: 300;
         }
+        /* No events message */
+        .no-events {
+            background-color: rgba(50, 55, 60, 0.8);
+            border: 1px solid var(--wp--preset--color--cyan-bluish-gray);
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .no-events p {
+            font-size: 1.1em;
+            margin: 0;
+        }
+        
+        .no-events a {
+            color: var(--wp--preset--color--pale-cyan-blue);
+            text-decoration: none;
+        }
+        
+        .no-events a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Flash messages */
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        
+        .flash-message {
+            background-color: rgba(6, 147, 227, 0.2);
+            border: 1px solid var(--wp--preset--color--vivid-cyan-blue);
+            color: var(--wp--preset--color--white);
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 0;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
@@ -389,6 +425,16 @@
     </nav>
 
     <div class="content">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="flash-message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
         {% block content %}{% endblock %}
     </div>
 </body>

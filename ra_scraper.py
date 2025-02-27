@@ -68,6 +68,175 @@ def update_event_cache(url, events):
     except Exception as e:
         logger.error(f"Error updating cache: {e}")
 
+def scrape_ra_requests(url, max_retries=3):
+    """Scrape RA events using only requests (no browser) - faster but less reliable"""
+    # Try to use fake_useragent for even better randomization
+    try:
+        ua = UserAgent()
+        # Generate a few user agents
+        user_agents = [ua.random for _ in range(5)]
+    except Exception as e:
+        # Fallback user agents
+        user_agents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        ]
+    
+    # Get available proxies - but we'll use them as a last resort
+    proxies = get_proxies()
+    
+    # First attempt without proxy (often works better)
+    for attempt in range(max_retries):
+        logger.info(f"Requests method attempt {attempt+1}/{max_retries} for {url}")
+        
+        try:
+            # Create new session for each attempt
+            session = requests.Session()
+            
+            # Use random user agent
+            user_agent = random.choice(user_agents)
+            headers = {
+                'User-Agent': user_agent,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Pragma': 'no-cache',
+                'Cache-Control': 'no-cache',
+            }
+            
+            logger.info(f"Using user agent: {user_agent}")
+            
+            # Use proxy for non-first attempts if available
+            current_proxy = None
+            if attempt > 0 and proxies:
+                current_proxy = random.choice(proxies)
+                proxy_dict = {
+                    'http': f'http://{current_proxy}',
+                    'https': f'http://{current_proxy}'
+                }
+                logger.info(f"Using proxy: {current_proxy}")
+            else:
+                proxy_dict = None
+                logger.info("Using direct connection (no proxy)")
+            
+            # First visit the homepage to get cookies
+            try:
+                session.get('https://ra.co', headers=headers, proxies=proxy_dict, timeout=15)
+                # Add slight delay
+                time.sleep(random.uniform(2, 5))
+            except Exception as e:
+                logger.warning(f"Could not access homepage: {e}, continuing anyway")
+            
+            # Visit the target page
+            logger.info(f"Requesting target URL: {url}")
+            response = session.get(url, headers=headers, proxies=proxy_dict, timeout=30)
+            
+            if response.status_code == 200:
+                html = response.text
+                
+                # Check if we're blocked
+                if "Access denied" in html or "Too many requests" in html or "Cloudflare" in html:
+                    logger.warning(f"Detected blocking on attempt {attempt+1}")
+                    time.sleep(random.uniform(10, 20))  # Longer delay before next attempt
+                    continue
+                
+                # Check if we have the data we need
+                if "__NEXT_DATA__" not in html:
+                    logger.warning(f"Could not find __NEXT_DATA__ on attempt {attempt+1}")
+                    continue
+                
+                # Parse the data
+                soup = BeautifulSoup(html, "html.parser")
+                next_data_script = soup.find("script", id="__NEXT_DATA__")
+                
+                if next_data_script:
+                    data = json.loads(next_data_script.string)
+                    
+                    # Check if we have the Apollo state
+                    if "props" not in data or "apolloState" not in data["props"]:
+                        logger.warning(f"Apollo state not found on attempt {attempt+1}")
+                        continue
+                        
+                    apollo_state = data["props"]["apolloState"]
+                    events = []
+                    
+                    # Process events
+                    for key, value in apollo_state.items():
+                        if key.startswith("Event:") and value.get("__typename") == "Event":
+                            event = value
+                            
+                            # Process event data
+                            event_date = event.get("date", "")[:10]
+                            
+                            # Extract time info
+                            start_time_iso = event.get("startTime", "")
+                            time_formatted = ""
+                            if start_time_iso:
+                                try:
+                                    dt = datetime.fromisoformat(start_time_iso)
+                                    time_formatted = dt.strftime("%H:%M")
+                                except Exception as e:
+                                    time_formatted = start_time_iso[11:16]
+                            
+                            # Extract artist names
+                            artist_names = []
+                            for artist_ref in event.get("artists", []):
+                                ref_key = artist_ref.get("__ref")
+                                if ref_key and ref_key in apollo_state:
+                                    artist_obj = apollo_state[ref_key]
+                                    name = artist_obj.get("name")
+                                    if name:
+                                        artist_names.append(name)
+                            artist_str = ", ".join(artist_names)
+                            
+                            # Extract venue info
+                            venue_name = ""
+                            venue_address = ""
+                            venue_ref = event.get("venue", {}).get("__ref")
+                            if venue_ref and venue_ref in apollo_state:
+                                venue_obj = apollo_state[venue_ref]
+                                venue_name = venue_obj.get("name", "")
+                                venue_address = venue_obj.get("address", "")
+                            
+                            content_url = event.get("contentUrl", "")
+                            ticket_link = "https://ra.co" + content_url
+                            
+                            event_dict = {
+                                "artist": artist_str,
+                                "date": event_date,
+                                "times": [time_formatted] if time_formatted else [],
+                                "venue": venue_name,
+                                "address": venue_address,
+                                "ticket_link": ticket_link,
+                                "price_range": None,
+                                "special_notes": ""
+                            }
+                            events.append(event_dict)
+                    
+                    if events:
+                        logger.info(f"Successfully scraped {len(events)} events with requests method!")
+                        update_event_cache(url, events)
+                        return events
+            
+            # If we get here, the current attempt failed
+            logger.warning(f"Attempt {attempt+1} failed or found no events.")
+            # Add delay before next attempt
+            time.sleep(random.uniform(5, 15))
+                    
+        except Exception as e:
+            logger.error(f"Error on requests attempt {attempt+1}: {e}")
+            time.sleep(random.uniform(10, 20))  # Longer delay after error
+    
+    # If we got here, all attempts failed
+    logger.error(f"All requests attempts failed for {url}")
+    return []
+
 def scrape_ra(url, max_retries=5):
     """Scrape event data from RA using their Next.js data with proxies and anti-blocking measures"""
     # Try to use fake_useragent for even better randomization
@@ -133,10 +302,17 @@ def scrape_ra(url, max_retries=5):
             firefox_options.set_preference('general.useragent.override', current_agent)
             logger.info(f"Using user agent: {current_agent}")
             
-            # Set up proxy if available
+            # Set up proxy if available and enabled
             proxy = None
-            if proxies and len(proxies) > len(failed_proxies):
-                # Use proxy that hasn't failed yet
+            # Allow disabling proxies via environment variable
+            use_proxies = os.environ.get('USE_PROXIES', 'true').lower() != 'false'
+            
+            # For the first attempt, try without proxy (often works better)
+            if attempt == 0:
+                logger.info("First attempt - using direct connection without proxy")
+                current_proxy = None
+            elif use_proxies and proxies and len(proxies) > len(failed_proxies):
+                # Use proxy that hasn't failed yet on subsequent attempts
                 available_proxies = [p for p in proxies if p not in failed_proxies]
                 if available_proxies:
                     current_proxy = random.choice(available_proxies)
@@ -151,6 +327,10 @@ def scrape_ra(url, max_retries=5):
                     firefox_options.set_preference("network.proxy.ssl_port", int(port))
                     # No proxy for localhost
                     firefox_options.set_preference("network.proxy.no_proxies_on", "localhost,127.0.0.1")
+            else:
+                # If all proxies failed or proxies disabled, try direct connection
+                logger.info("Using direct connection (no proxy)")
+                current_proxy = None
             
             # Create driver
             logger.info("Initializing Firefox driver...")
@@ -164,32 +344,53 @@ def scrape_ra(url, max_retries=5):
             
             try:
                 # First visit several unrelated sites to build history and cookies
-                sites = ['https://www.google.com', 'https://www.wikipedia.org', 'https://www.github.com']
+                # Use simpler sites that are less likely to time out
+                sites = ['https://example.com', 'https://httpbin.org', 'https://neverssl.com']
                 random.shuffle(sites)
-                for site in sites[:2]:  # Just visit 2 random ones
+                
+                # Try to visit just 1 simple site with shorter timeout
+                driver.set_page_load_timeout(15)  # Shorter timeout for these
+                site_visited = False
+                
+                for site in sites:
+                    if site_visited:
+                        break
                     try:
                         logger.info(f"Visiting {site} to build history...")
                         driver.get(site)
-                        time.sleep(random.uniform(3, 7))
+                        time.sleep(random.uniform(2, 4))
+                        site_visited = True
                     except Exception as e:
                         logger.warning(f"Could not visit {site}: {e}")
                 
-                # Visit RA homepage with more realistic browsing
-                logger.info("Visiting RA homepage...")
-                driver.get('https://ra.co')
-                time.sleep(random.uniform(5, 10))
+                # Reset timeout to longer value for main site
+                driver.set_page_load_timeout(60)
                 
-                # Simulate some random scrolling
-                for _ in range(3):
-                    scroll_amount = random.uniform(100, 500)
-                    driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
-                    time.sleep(random.uniform(1, 3))
+                # Try to visit RA homepage with more realistic browsing
+                try:
+                    logger.info("Visiting RA homepage...")
+                    driver.set_page_load_timeout(30)  # Shorter timeout for homepage
+                    driver.get('https://ra.co')
+                    
+                    # Continue only if homepage loaded successfully
+                    time.sleep(random.uniform(5, 10))
+                    
+                    # Simulate some random scrolling
+                    for _ in range(2):  # Reduced number of scrolls
+                        scroll_amount = random.uniform(100, 300)
+                        driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
+                        time.sleep(random.uniform(1, 2))
+                    
+                except Exception as e:
+                    logger.warning(f"Error loading RA homepage: {e}, proceeding directly to target URL")
+                    # If we couldn't load the homepage, we'll try the target URL directly
                 
                 # Wait a bit before going to target URL
-                time.sleep(random.uniform(5, 10))
+                time.sleep(random.uniform(3, 7))  # Reduced waiting time
                 
                 # Then visit the venue page
                 logger.info(f"Navigating to target URL: {url}")
+                driver.set_page_load_timeout(90)  # Longer timeout for main target
                 driver.get(url)
                 
                 # Longer wait for initial load
@@ -415,6 +616,16 @@ def scrape_ra(url, max_retries=5):
                 except Exception as cloud_error:
                     logger.error(f"Cloudscraper attempt also failed: {cloud_error}")
                     
+    # Try simple requests as another fallback before using cache
+    logger.warning("Trying simple requests as fallback method...")
+    try:
+        # Use our dedicated requests function
+        events = scrape_ra_requests(url)
+        if events:
+            return events
+    except Exception as fallback_error:
+        logger.error(f"All direct request attempts failed: {fallback_error}")
+    
     # Last resort: try to get data from cached venues file
     try:
         cache_file = 'ra_cache.json'
@@ -429,4 +640,5 @@ def scrape_ra(url, max_retries=5):
     except Exception as cache_error:
         logger.error(f"Could not use cache: {cache_error}")
         
+    logger.error(f"All scraping methods failed for {url}. No data retrieved.")
     return []  # Return empty list if all retries failed

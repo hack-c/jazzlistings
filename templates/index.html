@@ -2,7 +2,25 @@
 
 {% block content %}
 <div class="concerts">
-    <h1>Upcoming Shows</h1>
+    <div class="header-row">
+        <h1>Upcoming Shows</h1>
+        <div class="header-buttons">
+            {% if request.args.get('show_all') == 'true' or show_all == 'all' %}
+                <a href="{{ url_for('index') }}" class="wp-block-button__link">Show Filtered</a>
+            {% else %}
+                <a href="{{ url_for('index', show_all='true') }}" class="wp-block-button__link">Show All</a>
+            {% endif %}
+            {% if 'user_id' in session %}
+                <a href="{{ url_for('preferences') }}" class="wp-block-button__link">Edit Preferences</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if event_count == 0 %}
+    <div class="no-events">
+        <p>No events match your current preferences. <a href="{{ url_for('index', show_all='true') }}">View all events</a> or <a href="{{ url_for('preferences') }}">update your preferences</a>.</p>
+    </div>
+    {% endif %}
     
     {% for date in sorted_dates %}
     <div class="date-section">

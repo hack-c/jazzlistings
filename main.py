@@ -6,9 +6,9 @@ from datetime import datetime, timedelta, time as datetime_time
 import time
 import random
 from tenacity import retry, stop_after_attempt, wait_exponential
-from flask import Flask, render_template, session, request, redirect, url_for
+from flask import Flask, render_template, session, request, redirect, url_for, flash
 from collections import defaultdict
-from sqlalchemy import select
+from sqlalchemy import select, String
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import concurrent.futures
 import os
@@ -93,7 +93,8 @@ def kill_existing_scrapers():
         logging.error(f"Error killing scrapers: {e}")
 
 @app.route('/')
-def index():
+@app.route('/<show_all>')
+def index(show_all=None):
     db = SessionLocal()
     try:
         # Add debug logging
@@ -108,9 +109,12 @@ def index():
         today = now.date()
         three_months = today + timedelta(days=90)
         
+        # Check if we should show all concerts
+        show_all_concerts = (show_all == 'all' or request.args.get('show_all') == 'true')
+        
         # Get user preferences if logged in
         user_preferences = None
-        if 'user_id' in session:
+        if 'user_id' in session and not show_all_concerts:
             user = db.query(User).filter_by(id=session['user_id']).first()
             if user:
                 user_preferences = {
@@ -130,13 +134,40 @@ def index():
         )
         
         # Apply preference filters if user is logged in and has preferences
-        if user_preferences:
+        if user_preferences and (user_preferences['venues'] or user_preferences['neighborhoods'] or user_preferences['genres']):
+            # Create a list to collect filter conditions
+            filter_conditions = []
+            
+            # For each preference type, add a condition
             if user_preferences['venues']:
-                query = query.filter(Concert.venue_id.in_(user_preferences['venues']))
+                filter_conditions.append(Concert.venue_id.in_(user_preferences['venues']))
+                
             if user_preferences['neighborhoods']:
-                query = query.join(Venue).filter(Venue.neighborhood.in_(user_preferences['neighborhoods']))
+                # Ensure we have the Venue join
+                if not filter_conditions:  # Only add join if not already joined for venues
+                    query = query.join(Venue)
+                filter_conditions.append(Venue.neighborhood.in_(user_preferences['neighborhoods']))
+                
             if user_preferences['genres']:
-                query = query.join(Venue).filter(Venue.genres.contains(user_preferences['genres']))
+                # Ensure we have the Venue join
+                if not filter_conditions:  # Only add join if not already joined
+                    query = query.join(Venue)
+                
+                # For each preferred genre, check if it's in the venue's genre list
+                genre_conditions = []
+                for genre in user_preferences['genres']:
+                    # This properly checks if a single genre is in the JSON array
+                    genre_conditions.append(Venue.genres.cast(String).like(f'%"{genre}"%'))
+                
+                # Combine with OR logic between genres
+                if genre_conditions:
+                    from sqlalchemy import or_
+                    filter_conditions.append(or_(*genre_conditions))
+            
+            # Apply filters with OR logic between different preference types
+            if filter_conditions:
+                from sqlalchemy import or_
+                query = query.filter(or_(*filter_conditions))
         
         # Apply date filters
         query = query.filter(
@@ -187,11 +218,20 @@ def index():
         # Sort dates
         sorted_dates = sorted(concerts_by_date.keys())
         
+        # Calculate total number of events
+        event_count = sum(len(concerts) for date in concerts_by_date for concerts in concerts_by_date[date].values())
+        
+        # Add a flash message if this is the show_all view and there are events
+        if show_all_concerts and event_count > 0 and user_preferences:
+            flash("Showing all events. Your preference filters are currently disabled.")
+        
         return render_template(
             'index.html',
             concerts_by_date=concerts_by_date,
             sorted_dates=sorted_dates,
-            user=user if 'user_id' in session else None
+            user=user if 'user_id' in session else None,
+            event_count=event_count,
+            show_all=show_all
         )
     finally:
         db.close()
@@ -225,7 +265,37 @@ def process_venue(venue_info, session):
         logging.info(f"Processing {venue_name}")
         
         concert_data = []
-        if has_custom_scraper(venue_name, venue_url):
+        
+        # Handle RA venues differently
+        if 'ra.co' in venue_url:
+            # For RA venues, determine scraping strategy
+            scrape_strategy = os.environ.get('RA_SCRAPE_STRATEGY', 'auto').lower()
+            logging.info(f"Using RA scrape strategy: {scrape_strategy}")
+            
+            if scrape_strategy == 'requests':
+                # Try only the requests method (fastest)
+                from ra_scraper import scrape_ra_requests
+                concert_data = scrape_ra_requests(venue_url)
+                
+            elif scrape_strategy == 'selenium':
+                # Use full selenium approach (most thorough)
+                from ra_scraper import scrape_ra
+                concert_data = scrape_ra(venue_url)
+                
+            else:  # 'auto' or any other value
+                # Try requests first, then fall back to selenium if needed
+                from ra_scraper import scrape_ra_requests, scrape_ra
+                
+                # First try with requests (faster)
+                logging.info(f"First trying requests method for {venue_name}...")
+                concert_data = scrape_ra_requests(venue_url)
+                
+                # If that fails, try selenium
+                if not concert_data:
+                    logging.info(f"Requests method failed for {venue_name}, trying Selenium...")
+                    concert_data = scrape_ra(venue_url)
+        
+        elif has_custom_scraper(venue_name, venue_url):
             concert_data = use_custom_scraper(venue_name, venue_url)
         else:
             crawler = Crawler()
@@ -235,7 +305,7 @@ def process_venue(venue_info, session):
         
         if concert_data:
             store_concert_data(session, concert_data, venue_info)
-            logging.info(f"Completed processing {venue_name}")
+            logging.info(f"Completed processing {venue_name} - found {len(concert_data)} events")
             # Update last_scraped timestamp
             venue.last_scraped = datetime.now()
             session.commit()
