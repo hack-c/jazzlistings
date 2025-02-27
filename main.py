@@ -755,6 +755,17 @@ def initialize_app():
     """Initialize the application"""
     init_db()
     
+    # Run constraint removal migration
+    print("\nChecking database constraints...")
+    try:
+        from migrations.remove_unique_constraint import run_migration
+        if run_migration():
+            print("Successfully removed unique constraint")
+        else:
+            print("Note: unique constraint may still be present")
+    except Exception as e:
+        print(f"Warning: Could not run constraint migration: {e}")
+    
     # Clean placeholder artists on startup
     print("\nCleaning placeholder artists from database...")
     clean_placeholder_artists()
