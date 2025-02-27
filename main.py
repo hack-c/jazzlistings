@@ -553,12 +553,16 @@ def main():
         },
     ]
     
+    # Shuffle venues for randomized scraping order
+    random.shuffle(venues)
+    
     # Calculate scraping parameters
     params = calculate_scrape_params(len(venues))
     print(f"\nScraping parameters:")
     print(f"Batch size: {params['batch_size']}")
     print(f"Request delay: {params['request_delay']:.1f} seconds")
     print(f"Batch delay: {params['batch_delay']} seconds")
+    print(f"Venues will be processed in random order")
     
     # Process venues in small batches
     for i in range(0, len(venues), params['batch_size']):
