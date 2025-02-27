@@ -10,15 +10,16 @@ from io import BytesIO
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 import html2text
 from pdfminer.high_level import extract_text
 import logging
 from datetime import datetime
 import json
-from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.chrome.service import Service as ChromeService
 
 logger = logging.getLogger('concert_app')
 
@@ -170,20 +171,8 @@ class Crawler:
                 else:
                     logger.error(f"Firecrawl error: {e}")
             
-            # Try Firefox first
-            logger.info("Trying Firefox...")
-            markdown = self.scrape_with_firefox(url)
-            if markdown and len(markdown.strip()) > 1:
-                return markdown
-            
-            # If Firefox fails or returns empty content, try Chrome
-            logger.info("Firefox failed or returned empty content, trying Chrome...")
-            markdown = self.scrape_with_chrome(url)
-            if markdown and len(markdown.strip()) > 1:
-                return markdown
-            
-            # If both browsers fail, try simple requests
-            logger.info("Both browsers failed, trying simple requests...")
+            # Try simple requests first (fastest)
+            logger.info("Trying simple requests first...")
             try:
                 response = requests.get(url, 
                     headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'},
@@ -193,10 +182,25 @@ class Crawler:
                     html = response.text
                     markdown = self.html_to_markdown(html)
                     logger.info(f"Requests generated {len(markdown)} bytes of markdown")
-                    return markdown
+                    if markdown and len(markdown.strip()) > 100:  # Ensure we got meaningful content
+                        return markdown
+                    else:
+                        logger.info("Requests returned too little content, trying browsers...")
             except Exception as req_error:
                 logger.error(f"Requests scraping error: {req_error}")
-                
+            
+            # If requests fails or returns empty content, try Firefox
+            logger.info("Trying Firefox...")
+            markdown = self.scrape_with_firefox(url)
+            if markdown and len(markdown.strip()) > 100:
+                return markdown
+            
+            # If Firefox fails or returns empty content, try Chrome
+            logger.info("Firefox failed or returned empty content, trying Chrome...")
+            markdown = self.scrape_with_chrome(url)
+            if markdown and len(markdown.strip()) > 100:
+                return markdown
+            
             return None
                 
         except Exception as e:
