@@ -114,20 +114,33 @@ def scrape_ra_requests(url, max_retries=3):
             
             # Use proxy for non-first attempts if available
             current_proxy = None
+            proxy_dict = None
+            
             if attempt > 0 and proxies:
-                current_proxy = random.choice(proxies)
-                proxy_dict = {
-                    'http': f'http://{current_proxy}',
-                    'https': f'http://{current_proxy}'
-                }
-                logger.info(f"Using proxy: {current_proxy}")
+                try:
+                    # Try direct connection first for attempt 1
+                    if attempt == 1:
+                        logger.info("Using direct connection (no proxy)")
+                    else:
+                        # Use proxy for later attempts
+                        current_proxy = random.choice(proxies)
+                        proxy_dict = {
+                            'http': f'http://{current_proxy}',
+                            'https': f'http://{current_proxy}'
+                        }
+                        logger.info(f"Using proxy: {current_proxy}")
+                except Exception as proxy_error:
+                    logger.warning(f"Error setting up proxy: {proxy_error}, using direct connection")
+                    proxy_dict = None
             else:
-                proxy_dict = None
                 logger.info("Using direct connection (no proxy)")
             
             # First visit the homepage to get cookies
             try:
-                session.get('https://ra.co', headers=headers, proxies=proxy_dict, timeout=15)
+                if proxy_dict:
+                    session.get('https://ra.co', headers=headers, proxies=proxy_dict, timeout=15)
+                else:
+                    session.get('https://ra.co', headers=headers, timeout=15)
                 # Add slight delay
                 time.sleep(random.uniform(2, 5))
             except Exception as e:
@@ -135,7 +148,10 @@ def scrape_ra_requests(url, max_retries=3):
             
             # Visit the target page
             logger.info(f"Requesting target URL: {url}")
-            response = session.get(url, headers=headers, proxies=proxy_dict, timeout=30)
+            if proxy_dict:
+                response = session.get(url, headers=headers, proxies=proxy_dict, timeout=30)
+            else:
+                response = session.get(url, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 html = response.text
@@ -224,18 +240,13 @@ def scrape_ra_requests(url, max_retries=3):
                         update_event_cache(url, events)
                         return events
             
-            # If we get here, the current attempt failed
             logger.warning(f"Attempt {attempt+1} failed or found no events.")
-            # Add delay before next attempt
-            time.sleep(random.uniform(5, 15))
-                    
+            
         except Exception as e:
             logger.error(f"Error on requests attempt {attempt+1}: {e}")
-            time.sleep(random.uniform(10, 20))  # Longer delay after error
+            # Continue to next attempt
     
-    # If we got here, all attempts failed
-    logger.error(f"All requests attempts failed for {url}")
-    return []
+    return []  # Return empty list if all attempts failed
 
 def scrape_ra(url, max_retries=5):
     """Scrape event data from RA using their Next.js data with proxies and anti-blocking measures"""
