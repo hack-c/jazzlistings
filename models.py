@@ -47,6 +47,7 @@ class Venue(Base):
     website_url = Column(String)
     neighborhood = Column(String)
     genres = Column(JSON, default=list)  # Store multiple genres as a JSON array
+    # Note: PostgreSQL will use JSONB type for better performance
     last_scraped = Column(DateTime(timezone=True))  # New column
 
 class User(Base):

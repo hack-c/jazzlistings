@@ -1083,14 +1083,25 @@ def update_venue_data():
         db.close()
 
 def reset_database():
-    """Drop all tables and recreate them"""
-    db_path = "concerts.db"  # Adjust if your DB has a different name
-    if os.path.exists(db_path):
-        print(f"Deleting existing database at {db_path}")
-        os.remove(db_path)
-        print("Database file deleted, will be recreated")
+    """Reset database tables - handles both SQLite and PostgreSQL"""
+    from config import DATABASE_URL
+    from database import is_postgres
+    
+    if is_postgres:
+        # For PostgreSQL, drop and recreate all tables using SQLAlchemy
+        print("Dropping all tables in PostgreSQL database...")
+        from base import Base
+        Base.metadata.drop_all(bind=engine)
+        print("Tables dropped, they will be recreated at next startup")
     else:
-        print("No database file found to delete")
+        # For SQLite, simply delete the database file
+        db_path = "concerts.db"  # SQLite database path
+        if os.path.exists(db_path):
+            print(f"Deleting existing SQLite database at {db_path}")
+            os.remove(db_path)
+            print("Database file deleted, will be recreated")
+        else:
+            print("No SQLite database file found to delete")
 
 if __name__ == '__main__':
     import sys

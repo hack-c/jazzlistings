@@ -26,3 +26,4 @@ webdriver-manager
 cloudscraper
 html2text
 pdfminer
+psycopg2-binary==2.9.9
