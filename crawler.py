@@ -178,105 +178,90 @@ class Crawler:
         """Use Firefox to fetch the page"""
         logger.info(f"Fetching URL with Firefox: {url}")
         
+        # Configure Firefox options for Replit environment
         options = FirefoxOptions()
         options.add_argument('--headless')
-        options.set_preference('javascript.enabled', True)
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
+        
+        # Add user agent to avoid detection
+        user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0'
+        options.set_preference('general.useragent.override', user_agent)
+        
+        # Disable webdriver mode
         options.set_preference('dom.webdriver.enabled', False)
+        options.set_preference('useAutomationExtension', False)
         
         try:
-            from selenium.webdriver.firefox.service import Service
-            
-            service = Service(log_path=os.devnull)
+            # Use Service object to specify geckodriver path if needed
+            service = Service(log_path=os.devnull)  # Suppress driver logs
             driver = webdriver.Firefox(options=options, service=service)
             
-            driver.get(url)
+            # Set page load timeout
+            driver.set_page_load_timeout(30)
             
-            # Wait for page load
-            WebDriverWait(driver, 30).until(
-                lambda d: d.execute_script('return document.readyState') == 'complete'
-            )
-            
-            html_content = driver.page_source
-            
-            # Convert to markdown
-            h = html2text.HTML2Text()
-            h.ignore_links = False
-            h.body_width = 0
-            markdown = h.handle(html_content)
-            
-            logger.info(f"Firefox generated {len(markdown)} bytes of markdown")
-            return markdown
-            
+            try:
+                driver.get(url)
+                time.sleep(5)  # Wait for page to load
+                html = driver.page_source
+                
+                # Generate markdown from HTML
+                markdown = self.html_to_markdown(html)
+                logger.info(f"Firefox generated {len(markdown)} bytes of markdown")
+                return markdown
+            finally:
+                driver.quit()
         except Exception as e:
             logger.error(f"Firefox scraping error: {e}")
-            return None
-        finally:
-            try:
-                driver.quit()
-            except:
-                pass
+            return ""
 
     def scrape_with_chrome(self, url):
         """Use Chrome to fetch the page"""
         logger.info(f"Fetching URL with Chrome: {url}")
         
+        # Configure Chrome options for Replit environment
         options = ChromeOptions()
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--remote-debugging-port=9222')
         options.add_argument('--disable-blink-features=AutomationControlled')
         options.add_argument('--disable-infobars')
-        options.add_argument('--start-maximized')
-        options.add_argument('--window-size=1920,1080')
-        options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+        
+        # Add user agent
+        options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36')
         
         # Add experimental options
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option('useAutomationExtension', False)
         
         try:
-            driver = webdriver.Chrome(options=options)
-            driver.get(url)
+            # Try using undetected_chromedriver if available
+            try:
+                import undetected_chromedriver as uc
+                logger.info("Using undetected_chromedriver")
+                driver = uc.Chrome(options=options)
+            except ImportError:
+                # Fall back to regular Chrome
+                logger.info("Using regular Chrome")
+                driver = webdriver.Chrome(options=options)
             
-            # Wait for page load
-            WebDriverWait(driver, 30).until(
-                lambda d: d.execute_script('return document.readyState') == 'complete'
-            )
+            # Set page load timeout
+            driver.set_page_load_timeout(30)
             
-            # Wait for RA.co specific elements
-            if 'ra.co' in url:
-                time.sleep(5)  # Give dynamic content time to load
-                try:
-                    # Log the page title
-                    logger.info(f"Page title: {driver.title}")
-                    
-                    # Log any error messages that might be present
-                    error_elements = driver.find_elements_by_css_selector('.error-message, .error')
-                    if error_elements:
-                        for elem in error_elements:
-                            logger.warning(f"Found error element: {elem.text}")
-                except Exception as e:
-                    logger.warning(f"Error checking page elements: {e}")
-            
-            html_content = driver.page_source
-            
-            # Convert to markdown
-            h = html2text.HTML2Text()
-            h.ignore_links = False
-            h.body_width = 0
-            markdown = h.handle(html_content)
-            
-            # Log content details
-            logger.info(f"Chrome generated {len(markdown)} bytes of markdown")
-            logger.debug(f"Markdown preview: {markdown[:500]}")  # Log first 500 chars
-            
-            return markdown
-            
+            try:
+                driver.get(url)
+                time.sleep(5)  # Wait for page to load
+                html = driver.page_source
+                
+                # Generate markdown from HTML
+                markdown = self.html_to_markdown(html)
+                logger.info(f"Chrome generated {len(markdown)} bytes of markdown")
+                return markdown
+            finally:
+                driver.quit()
         except Exception as e:
             logger.error(f"Chrome scraping error: {e}")
-            return None
-        finally:
-            try:
-                driver.quit()
-            except:
-                pass
+            return ""
