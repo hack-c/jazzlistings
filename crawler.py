@@ -17,6 +17,8 @@ from pdfminer.high_level import extract_text
 import logging
 from datetime import datetime
 import json
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.chrome.service import Service as ChromeService
 
 logger = logging.getLogger('concert_app')
 
@@ -176,7 +178,26 @@ class Crawler:
             
             # If Firefox fails or returns empty content, try Chrome
             logger.info("Firefox failed or returned empty content, trying Chrome...")
-            return self.scrape_with_chrome(url)
+            markdown = self.scrape_with_chrome(url)
+            if markdown and len(markdown.strip()) > 1:
+                return markdown
+            
+            # If both browsers fail, try simple requests
+            logger.info("Both browsers failed, trying simple requests...")
+            try:
+                response = requests.get(url, 
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'},
+                    timeout=30
+                )
+                if response.status_code == 200:
+                    html = response.text
+                    markdown = self.html_to_markdown(html)
+                    logger.info(f"Requests generated {len(markdown)} bytes of markdown")
+                    return markdown
+            except Exception as req_error:
+                logger.error(f"Requests scraping error: {req_error}")
+                
+            return None
                 
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
