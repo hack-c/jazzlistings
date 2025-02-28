@@ -178,15 +178,35 @@ def parse_markdown(markdown_content, venue_info):
             response_format={ "type": "json_object" }
         )
 
-        # Parse the response
-        result = json.loads(response.choices[0].message.content)
-        concerts = result.get('concerts', [])  # Get the concerts array from the response
-        
-        logger.info(f"OpenAI parser found {len(concerts)} concerts")
-        if concerts:
-            logger.debug(f"First concert: {concerts[0]}")
+        # Parse the response with better error handling
+        try:
+            content = response.choices[0].message.content
+            # Add extra validation to catch malformed JSON
+            content = content.strip()
+            if not content.startswith('{'):
+                logger.warning("Response does not start with '{', attempting to fix JSON")
+                json_start = content.find('{')
+                if json_start >= 0:
+                    content = content[json_start:]
+            if not content.endswith('}'):
+                logger.warning("Response does not end with '}', attempting to fix JSON")
+                json_end = content.rfind('}')
+                if json_end >= 0:
+                    content = content[:json_end+1]
+                    
+            logger.debug(f"JSON content to parse: {content[:100]}...")
+            result = json.loads(content)
+            concerts = result.get('concerts', [])  # Get the concerts array from the response
             
-        return concerts
+            logger.info(f"OpenAI parser found {len(concerts)} concerts")
+            if concerts:
+                logger.debug(f"First concert: {concerts[0]}")
+                
+            return concerts
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {str(e)}")
+            logger.error(f"Response content preview: {response.choices[0].message.content[:200]}...")
+            # Fall through to regex parser
 
     except Exception as e:
         logger.error(f"Error using OpenAI parser: {e}")

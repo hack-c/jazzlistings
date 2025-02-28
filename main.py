@@ -248,20 +248,25 @@ def inject_user():
     return {'user': None}
 
 def process_venue(venue_info, session):
-    """Process a single venue with strict rate limiting"""
+    """Process a single venue with strict rate limiting and improved error handling"""
     venue_name = venue_info['name']
     venue_url = venue_info['url']
     
+    # Create a nested session to handle transaction isolation
+    nested_session = Session()
+    
     try:
         # Get or create venue
-        venue = get_or_create_venue(session, venue_info)
+        venue = get_or_create_venue(nested_session, venue_info)
         
-        # Check for existing concerts before processing
-        existing_concerts = check_existing_concerts(session, venue_name)
-        if existing_concerts:
-            logging.debug(f"Found {len(existing_concerts)} existing concerts for {venue_name}")
-            return  # Skip if we already have concerts
-            
+        # Check if this venue was recently scraped (within the last 24 hours)
+        if venue.last_scraped:
+            time_since_scrape = datetime.now() - venue.last_scraped
+            if time_since_scrape < timedelta(hours=24):
+                logging.info(f"Skipping {venue_name} - was scraped {time_since_scrape.total_seconds() / 3600:.1f} hours ago")
+                nested_session.close()
+                return
+        
         logging.info(f"Processing {venue_name}")
         
         concert_data = []
@@ -304,16 +309,33 @@ def process_venue(venue_info, session):
                 concert_data = parse_markdown(markdown_content, venue_info)
         
         if concert_data:
-            store_concert_data(session, concert_data, venue_info)
-            logging.info(f"Completed processing {venue_name} - found {len(concert_data)} events")
-            # Update last_scraped timestamp
-            venue.last_scraped = datetime.now()
-            session.commit()
+            try:
+                # We always store/update concert data, even if the venue was recently scraped
+                num_concerts = len(concert_data)
+                store_concert_data(nested_session, concert_data, venue_info)
+                logging.info(f"Completed processing {venue_name} - found {num_concerts} events")
+                # Update last_scraped timestamp
+                venue.last_scraped = datetime.now()
+                nested_session.commit()
+            except Exception as e:
+                logging.error(f"Error storing concert data for {venue_name}: {e}")
+                nested_session.rollback()
         else:
             logging.info(f"No concerts found for {venue_name}")
             
     except Exception as e:
         logging.error(f"Error processing {venue_name}: {e}")
+        # Ensure we always rollback on error
+        try:
+            nested_session.rollback()
+        except Exception as rollback_error:
+            logging.error(f"Error during rollback for {venue_name}: {rollback_error}")
+    finally:
+        # Always close the session
+        try:
+            nested_session.close()
+        except Exception as close_error:
+            logging.error(f"Error closing session for {venue_name}: {close_error}")
 
 def is_credit_limit_error(error_msg):
     """Check if the error is due to insufficient Firecrawl credits"""
@@ -391,7 +413,7 @@ def calculate_scrape_params(venue_count):
     }
 
 def process_venue_batch(batch, session):
-    """Process a batch of venues"""
+    """Process a batch of venues with improved error handling"""
     # Skip if we're in the reloader process
     if not os.environ.get('WERKZEUG_RUN_MAIN'):
         return
@@ -420,7 +442,9 @@ def process_venue_batch(batch, session):
                 continue
                 
             try:
-                future = executor.submit(process_venue, venue_info, session)
+                # Create a fresh session for each venue to avoid transaction issues
+                # The nested process_venue function will create its own session
+                future = executor.submit(process_venue, venue_info, None)
                 future.result()
                 processed_venues.add(venue_name)
                 logging.info(f"Completed processing {venue_name}")
@@ -446,10 +470,12 @@ def process_venue_batch(batch, session):
                     
             except Exception as e:
                 logging.error(f"Error processing {venue_name}: {e}")
+                # Continue with next venue instead of failing the whole batch
 
 def main():
     """Main function that orchestrates the crawling, parsing, and storing of concert data."""
-    session = Session()
+    # We don't need a global session anymore since each venue creates its own
+    # session = Session()
     
     # List of venue websites to crawl
     venues = [
@@ -584,14 +610,14 @@ def main():
         batch = venues[i:i+params['batch_size']]
         print(f"\nProcessing batch {i//params['batch_size'] + 1} of {(len(venues) + params['batch_size'] - 1)//params['batch_size']}")
         
-        process_venue_batch(batch, session)
+        # Pass None for session parameter since each venue creates its own session
+        process_venue_batch(batch, None)
         
         # Add delay between batches
         if i + params['batch_size'] < len(venues):
             print(f"\nWaiting {params['batch_delay']} seconds before next batch...")
             time.sleep(params['batch_delay'])
 
-    session.close()
     print("\nAll venues processed")
 
 def store_concert_data(session, concert_data_list, venue_info):
@@ -964,61 +990,90 @@ def generate_calendar_links(concert, venue_name, artist_names):
 
 def get_or_create_venue(session, venue_info):
     """Get existing venue or create a new one, and update missing fields"""
-    venue = session.query(Venue).filter_by(name=venue_info['name']).first()
-    if not venue:
-        # Create new venue with all available info
-        venue = Venue(
-            name=venue_info['name'],
-            website_url=venue_info['url'],
-            address=venue_info.get('address', ''),
-            neighborhood=venue_info.get('neighborhood', ''),
-            genres=venue_info.get('genres', [])
-        )
-        session.add(venue)
-        session.commit()
-    else:
-        # Update venue fields if they're missing or empty but provided in venue_info
-        updated = False
-        
-        if venue_info.get('neighborhood') and (not venue.neighborhood or venue.neighborhood == ''):
-            venue.neighborhood = venue_info.get('neighborhood')
-            updated = True
-            
-        if venue_info.get('genres') and (not venue.genres or venue.genres == [] or venue.genres == ['']):
-            venue.genres = venue_info.get('genres')
-            updated = True
-            
-        if venue_info.get('address') and (not venue.address or venue.address == ''):
-            venue.address = venue_info.get('address')
-            updated = True
-            
-        if venue_info.get('website_url') and (not venue.website_url or venue.website_url == ''):
-            venue.website_url = venue_info.get('website_url')
-            updated = True
-            
-        if updated:
+    # If session is None, create a new one
+    session_created = False
+    if session is None:
+        session = Session()
+        session_created = True
+    
+    try:
+        venue = session.query(Venue).filter_by(name=venue_info['name']).first()
+        if not venue:
+            # Create new venue with all available info
+            venue = Venue(
+                name=venue_info['name'],
+                website_url=venue_info['url'],
+                address=venue_info.get('address', ''),
+                neighborhood=venue_info.get('neighborhood', ''),
+                genres=venue_info.get('genres', [])
+            )
+            session.add(venue)
             session.commit()
+        else:
+            # Update venue fields if they're missing or empty but provided in venue_info
+            updated = False
             
-    return venue
+            if venue_info.get('neighborhood') and (not venue.neighborhood or venue.neighborhood == ''):
+                venue.neighborhood = venue_info.get('neighborhood')
+                updated = True
+                
+            if venue_info.get('genres') and (not venue.genres or venue.genres == [] or venue.genres == ['']):
+                venue.genres = venue_info.get('genres')
+                updated = True
+                
+            if venue_info.get('address') and (not venue.address or venue.address == ''):
+                venue.address = venue_info.get('address')
+                updated = True
+                
+            if venue_info.get('website_url') and (not venue.website_url or venue.website_url == ''):
+                venue.website_url = venue_info.get('website_url')
+                updated = True
+                
+            if updated:
+                session.commit()
+        
+        return venue
+    except Exception as e:
+        logging.error(f"Error in get_or_create_venue for {venue_info['name']}: {e}")
+        session.rollback()
+        raise
+    finally:
+        # Close the session if we created it here
+        if session_created:
+            session.close()
 
 def check_existing_concerts(session, venue_name):
     """Check if venue has any upcoming concerts"""
-    now = datetime.now(pytz.UTC)
-    venue = session.query(Venue).filter_by(name=venue_name).first()
-    if venue and venue.last_scraped:
-        venue_last_scraped = venue.last_scraped.replace(tzinfo=pytz.UTC)
-        time_since_scrape = now - venue_last_scraped
-        
-        # Check if venue has any upcoming concerts
-        upcoming_concerts = session.query(Concert).join(Venue).filter(
-            Venue.name == venue_name,
-            Concert.date >= datetime.now().date()
-        ).all()
-        
-        # Return concerts if recently scraped AND has upcoming concerts
-        if time_since_scrape < timedelta(hours=24) and upcoming_concerts:
-            return upcoming_concerts
-    return []
+    # If session is None, create a new one
+    session_created = False
+    if session is None:
+        session = Session()
+        session_created = True
+    
+    try:
+        now = datetime.now(pytz.UTC)
+        venue = session.query(Venue).filter_by(name=venue_name).first()
+        if venue and venue.last_scraped:
+            venue_last_scraped = venue.last_scraped.replace(tzinfo=pytz.UTC)
+            time_since_scrape = now - venue_last_scraped
+            
+            # Check if venue has any upcoming concerts
+            upcoming_concerts = session.query(Concert).join(Venue).filter(
+                Venue.name == venue_name,
+                Concert.date >= datetime.now().date()
+            ).all()
+            
+            # Return concerts if recently scraped AND has upcoming concerts
+            if time_since_scrape < timedelta(hours=24) and upcoming_concerts:
+                return upcoming_concerts
+        return []
+    except Exception as e:
+        logging.error(f"Error in check_existing_concerts for {venue_name}: {e}")
+        return []
+    finally:
+        # Close the session if we created it here
+        if session_created:
+            session.close()
 
 def has_custom_scraper(venue_name, venue_url):
     """Check if venue has a custom scraper or uses RA"""
