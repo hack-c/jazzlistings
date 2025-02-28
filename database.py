@@ -173,7 +173,7 @@ if is_postgres:
                 raise
     
     # Create the final Session class
-    Session = sessionmaker(class_=TimedSession, bind=engine, expire_on_commit=False)
+    Session = sessionmaker(bind=engine, class_=TimedSession, expire_on_commit=False)
 else:
     # Regular session for SQLite
     Session = sessionmaker(bind=engine)
