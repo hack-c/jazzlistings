@@ -1154,7 +1154,7 @@ def update_venue_data():
             'Bar LunÀtico': {'neighborhood': 'Bedford-Stuyvesant', 'genres': ['Jazz']},
             'Bar Bayeux': {'neighborhood': 'Prospect Heights', 'genres': ['Jazz']},
             'The Owl Music Parlor': {'neighborhood': 'Prospect Heights', 'genres': ['Jazz']},
-            'Marians Jazz Room': {'neighborhood': 'Williamsburg', 'genres': ['Jazz']},
+            'Marians Jazz Room': {'neighborhood': 'Bedford-Stuyvesant', 'genres': ['Jazz']},
             'Zinc Bar': {'neighborhood': 'Greenwich Village', 'genres': ['Jazz']},
             'The Stone': {'neighborhood': 'East Village', 'genres': ['Jazz']},
             'Nublu 151': {'neighborhood': 'East Village', 'genres': ['Jazz']},
