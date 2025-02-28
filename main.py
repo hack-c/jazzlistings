@@ -597,6 +597,8 @@ def main():
 def store_concert_data(session, concert_data_list, venue_info):
     """
     Stores the concert data into the database with deduplication logic.
+    When a concert with the same venue, artist, date, and time is found, it will update
+    the existing concert rather than creating a new one.
     """
     venue_name = venue_info['name']
     print(f"\nProcessing {len(concert_data_list)} concerts for {venue_name}")
@@ -640,55 +642,11 @@ def store_concert_data(session, concert_data_list, venue_info):
         try:
             concert_date = datetime.strptime(date_str, '%Y-%m-%d').date()
             
-            # Add detailed logging to debug duplication issues
-            print(f"\nCHECKING FOR DUPLICATES: {venue_name}, {concert_date}, '{artist_name}'")
-            
-            # Check for existing concert with same venue, date and artist
-            existing_concert = (
-                session.query(Concert)
-                .join(Concert.artists)
-                .filter(
-                    Concert.venue_id == venue.id,
-                    Concert.date == concert_date,
-                    Artist.name == artist_name
-                )
-                .first()
-            )
-            
-            # Log if we found a duplicate
-            if existing_concert:
-                existing_artists = [a.name for a in existing_concert.artists]
-                print(f"DUPLICATE FOUND: {venue_name}, {concert_date}, Artists: {existing_artists}")
-                print(f"CONSTRAINT CHECK: UniqueConstraint is on venue_id={venue.id} and date={concert_date}")
-
-            if existing_concert:
-                print(f"Concert already exists for {artist_name} at {venue_name} on {concert_date}")
-                # Optionally update existing concert with new information
-                existing_concert.ticket_link = concert_data.get('ticket_link', existing_concert.ticket_link)
-                existing_concert.price_range = concert_data.get('price_range', existing_concert.price_range)
-                existing_concert.special_notes = concert_data.get('special_notes', existing_concert.special_notes)
-                session.commit()
-                continue
-
-            # Get or create artist
-            artist = session.query(Artist).filter_by(name=artist_name).first()
-            if not artist:
-                artist = Artist(name=artist_name)
-                session.add(artist)
-                session.commit()
-
-            # Create new concert
-            concert = Concert(
-                venue_id=venue.id,
-                date=concert_date,
-                ticket_link=concert_data.get('ticket_link', ''),
-                price_range=concert_data.get('price_range', ''),
-                special_notes=concert_data.get('special_notes', ''),
-            )
-            concert.artists.append(artist)
-
-            # Create child ConcertTime rows
+            # Parse times for the concert to check for duplicates
             times_list = concert_data.get('times') or venue_info.get('default_times', [])
+            processed_times = []
+            
+            # Process all time strings into time objects for comparison
             for time_str in times_list:
                 try:
                     # Try parsing 12-hour format first
@@ -700,13 +658,80 @@ def store_concert_data(session, concert_data_list, venue_info):
                     except ValueError:
                         print(f"Invalid time format: {time_str}")
                         continue
+                processed_times.append(time_obj)
+            
+            # Add detailed logging to debug duplication issues
+            print(f"\nCHECKING FOR DUPLICATES: {venue_name}, {concert_date}, '{artist_name}', times: {processed_times}")
+            
+            # Get or create artist
+            artist = session.query(Artist).filter_by(name=artist_name).first()
+            if not artist:
+                artist = Artist(name=artist_name)
+                session.add(artist)
+                session.commit()
+            
+            # Check for existing concert with same venue, date, artist
+            existing_concert = (
+                session.query(Concert)
+                .join(Concert.artists)
+                .filter(
+                    Concert.venue_id == venue.id,
+                    Concert.date == concert_date,
+                    Artist.name == artist_name
+                )
+                .first()
+            )
+            
+            # If we found a match, check if it has the same time(s)
+            if existing_concert:
+                existing_artists = [a.name for a in existing_concert.artists]
+                existing_times = [t.time for t in existing_concert.times]
+                
+                print(f"MATCH FOUND: {venue_name}, {concert_date}, Artists: {existing_artists}")
+                print(f"Existing times: {existing_times}, New times: {processed_times}")
+                
+                # Update the existing concert with new information
+                existing_concert.ticket_link = concert_data.get('ticket_link', existing_concert.ticket_link)
+                existing_concert.price_range = concert_data.get('price_range', existing_concert.price_range)
+                existing_concert.special_notes = concert_data.get('special_notes', existing_concert.special_notes)
+                existing_concert.updated_at = datetime.now()  # Update the timestamp
+                
+                # Update times if they've changed
+                if set(processed_times) != set(existing_times):
+                    print(f"Times have changed, updating concert times")
+                    
+                    # Delete existing times
+                    for time in existing_concert.times:
+                        session.delete(time)
+                    
+                    # Add new times
+                    for time_obj in processed_times:
+                        concert_time = ConcertTime(time=time_obj)
+                        existing_concert.times.append(concert_time)
+                
+                session.commit()
+                print(f"Updated existing concert: {artist_name} at {venue_name} on {concert_date}")
+                continue
+
+            # Create new concert if no duplicate found
+            concert = Concert(
+                venue_id=venue.id,
+                date=concert_date,
+                ticket_link=concert_data.get('ticket_link', ''),
+                price_range=concert_data.get('price_range', ''),
+                special_notes=concert_data.get('special_notes', ''),
+            )
+            concert.artists.append(artist)
+
+            # Create child ConcertTime rows
+            for time_obj in processed_times:
                 concert_time = ConcertTime(time=time_obj)
                 concert.times.append(concert_time)
 
             session.add(concert)
             try:
                 session.commit()
-                print(f"Added concert: {artist_name} at {venue_name} on {concert_date}")
+                print(f"Added new concert: {artist_name} at {venue_name} on {concert_date}")
             except Exception as e:
                 print(f"Error committing concert: {e}")
                 session.rollback()
