@@ -105,6 +105,11 @@ venue_data = {
     'Black Flamingo': {'neighborhood': 'Williamsburg', 'genres': ['Clubs']},
     '3 Dollar Bill': {'neighborhood': 'East Williamsburg', 'genres': ['Clubs']},
     'Film at Lincoln Center': {'neighborhood': 'Upper West Side', 'genres': ['Movies']},
+    '99 Scott': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+    'Mood Ring': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+    'Pianos': {'neighborhood': 'Lower East Side', 'genres': ['Clubs']},
+    'Market Hotel': {'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+    'Paragon': {'neighborhood': 'Bushwick', 'genres': ['Clubs']}
 }
 
 # Create a configured "Session" class with query timeout for PostgreSQL
