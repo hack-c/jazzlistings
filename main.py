@@ -261,7 +261,12 @@ def process_venue(venue_info, session):
         
         # Check if this venue was recently scraped (within the last 24 hours)
         if venue.last_scraped:
-            time_since_scrape = datetime.now() - venue.last_scraped
+            # Make timezone-aware comparison to avoid "offset-naive and offset-aware" error
+            # Use timezone from pytz which is already imported
+            now = datetime.now(pytz.UTC)
+            # Ensure venue.last_scraped has timezone info
+            last_scraped = venue.last_scraped.replace(tzinfo=pytz.UTC) if venue.last_scraped.tzinfo is None else venue.last_scraped
+            time_since_scrape = now - last_scraped
             if time_since_scrape < timedelta(hours=24):
                 logging.info(f"Skipping {venue_name} - was scraped {time_since_scrape.total_seconds() / 3600:.1f} hours ago")
                 nested_session.close()
@@ -314,8 +319,8 @@ def process_venue(venue_info, session):
                 num_concerts = len(concert_data)
                 store_concert_data(nested_session, concert_data, venue_info)
                 logging.info(f"Completed processing {venue_name} - found {num_concerts} events")
-                # Update last_scraped timestamp
-                venue.last_scraped = datetime.now()
+                # Update last_scraped timestamp with timezone-aware datetime
+                venue.last_scraped = datetime.now(pytz.UTC)
                 nested_session.commit()
             except Exception as e:
                 logging.error(f"Error storing concert data for {venue_name}: {e}")
