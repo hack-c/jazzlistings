@@ -114,17 +114,13 @@ venue_data = {
 
 # Create a configured "Session" class with query timeout for PostgreSQL
 if is_postgres:
-    # Add statement timeout to prevent long-running queries
+    # Create base Session class
     Session = sessionmaker(bind=engine, expire_on_commit=False)
     
-    # Create a custom session class that automatically commits/closes after a period of idle time
-    from sqlalchemy.exc import SQLAlchemyError
-    import threading
-    
-    class TimedSessionBase(Session):
+    class TimedSession(Session):
         """A session class that tracks when it was created and auto-closes after a timeout"""
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
+        def __init__(self):
+            super().__init__()
             self.created_at = time.time()
             self._active_transaction = False
             
@@ -149,40 +145,35 @@ if is_postgres:
                 return result
             except Exception as e:
                 logging.error(f"Error during rollback: {e}")
-                # Even if rollback fails, mark transaction as not active
                 self._active_transaction = False
                 raise
             
         def execute(self, *args, **kwargs):
-            # Check if session is too old
-            if time.time() - self.created_at > 180:  # 3 minutes (reduced from 5)
+            if time.time() - self.created_at > 180:  # 3 minutes
                 logging.warning("Session timeout exceeded, attempting to clean up")
                 try:
                     if self._active_transaction:
                         self.rollback()
                 except Exception as e:
                     logging.error(f"Error rolling back timed out session: {e}")
-                    pass
                 try:
                     self.close()
                 except Exception as e:
                     logging.error(f"Error closing timed out session: {e}")
-                    pass
                 raise SQLAlchemyError("Session timeout exceeded, please create a new session")
                 
             try:
                 return super().execute(*args, **kwargs)
             except Exception as e:
-                # Attempt to rollback on any execution error
                 if self._active_transaction:
                     try:
                         self.rollback()
                     except:
                         pass
                 raise
-            
-    # Use the timed session
-    Session = TimedSessionBase
+    
+    # Create the final Session class
+    Session = sessionmaker(class_=TimedSession, bind=engine, expire_on_commit=False)
 else:
     # Regular session for SQLite
     Session = sessionmaker(bind=engine)
