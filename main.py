@@ -496,11 +496,23 @@ def main():
          'default_times': ['15:00', '20:00']
         },
         {'name': 'Elsewhere', 
-         'url': 'https://www.elsewherebrooklyn.com/calendar', 
+         'url': 'https://ra.co/clubs/139960', 
+         'default_times': ['22:00']
+        },
+        {'name': 'Pianos', 
+         'url': 'https://ra.co/clubs/8400', 
+         'default_times': ['22:00']
+        },
+        {'name': 'Mood Ring', 
+         'url': 'https://ra.co/clubs/141852', 
+         'default_times': ['22:00']
+        },
+        {'name': '99 Scott', 
+         'url': 'https://ra.co/clubs/103503', 
          'default_times': ['22:00']
         },
         {'name': 'Good Room', 
-         'url': 'https://donyc.com/venues/good-room', 
+         'url': 'https://ra.co/clubs/97606', 
          'default_times': ['22:00']
         },        
         {'name': 'Public Records', 
@@ -592,6 +604,8 @@ def main():
          'neighborhood': 'Greenwich Village',
          'genres': ['Movies']
         },
+        {'name': 'Market Hotel', 'url': 'https://ra.co/clubs/19281', 'default_times': ['11:00 PM'], 'neighborhood': 'Bushwick', 'genres': ['Clubs']},
+        {'name': 'Paragon', 'url': 'https://ra.co/clubs/195815', 'default_times': ['11:00 PM'], 'neighborhood': 'Bushwick', 'genres': ['Clubs']},
     ]
     
     # Shuffle venues for randomized scraping order
