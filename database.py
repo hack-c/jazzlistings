@@ -114,13 +114,13 @@ venue_data = {
 
 # Create a configured "Session" class with query timeout for PostgreSQL
 if is_postgres:
-    # Create base Session class
-    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    # Import the base Session class
+    from sqlalchemy.orm import Session as BaseSession
     
-    class TimedSession(Session):
+    class TimedSession(BaseSession):
         """A session class that tracks when it was created and auto-closes after a timeout"""
-        def __init__(self):
-            super().__init__()
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
             self.created_at = time.time()
             self._active_transaction = False
             
@@ -160,6 +160,7 @@ if is_postgres:
                     self.close()
                 except Exception as e:
                     logging.error(f"Error closing timed out session: {e}")
+                from sqlalchemy.exc import SQLAlchemyError
                 raise SQLAlchemyError("Session timeout exceeded, please create a new session")
                 
             try:
