@@ -7,6 +7,7 @@ from models import Venue
 import json
 import re
 import os
+import time
 
 # Configure SQLAlchemy to only log errors
 logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
@@ -20,12 +21,21 @@ if is_postgres:
     engine = create_engine(
         DATABASE_URL,
         echo=False,
-        # PostgreSQL specific settings
-        pool_size=10,
-        max_overflow=20,
-        pool_timeout=30,
-        pool_recycle=1800,  # Recycle connections after 30 minutes
-        pool_pre_ping=True  # Test connections before using them
+        # PostgreSQL specific settings with more robust connection management
+        pool_size=3,  # Even smaller pool size to reduce connection issues
+        max_overflow=5,  # Limit max overflow to avoid overwhelming the database
+        pool_timeout=30,  # Increased timeout to allow more time for connections
+        pool_recycle=180,  # Recycle connections after 3 minutes to prevent stale connections
+        pool_pre_ping=True,  # Test connections before using them
+        connect_args={
+            "keepalives": 1,  # Enable keepalives
+            "keepalives_idle": 20,  # Send keepalive after 20 seconds idle
+            "keepalives_interval": 5,  # Check every 5 seconds after first keepalive
+            "keepalives_count": 5,  # Allow 5 failed keepalives before dropping
+            "connect_timeout": 15,  # Connection timeout in seconds
+            "options": "-c statement_timeout=60000",  # 60-second statement timeout
+            "sslmode": "require"  # Require SSL connection
+        }
     )
 else:
     # SQLite settings
@@ -97,10 +107,82 @@ venue_data = {
     'Film at Lincoln Center': {'neighborhood': 'Upper West Side', 'genres': ['Movies']},
 }
 
-# Create a configured "Session" class
-Session = sessionmaker(bind=engine)
+# Create a configured "Session" class with query timeout for PostgreSQL
+if is_postgres:
+    # Add statement timeout to prevent long-running queries
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    
+    # Create a custom session class that automatically commits/closes after a period of idle time
+    from sqlalchemy.exc import SQLAlchemyError
+    import threading
+    
+    class TimedSessionBase(Session):
+        """A session class that tracks when it was created and auto-closes after a timeout"""
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.created_at = time.time()
+            self._active_transaction = False
+            
+        def begin(self, *args, **kwargs):
+            self._active_transaction = True
+            return super().begin(*args, **kwargs)
+            
+        def commit(self, *args, **kwargs):
+            try:
+                result = super().commit(*args, **kwargs)
+                self._active_transaction = False
+                return result
+            except Exception as e:
+                logging.error(f"Error during commit: {e}")
+                self.rollback()
+                raise
+                
+        def rollback(self, *args, **kwargs):
+            try:
+                result = super().rollback(*args, **kwargs)
+                self._active_transaction = False
+                return result
+            except Exception as e:
+                logging.error(f"Error during rollback: {e}")
+                # Even if rollback fails, mark transaction as not active
+                self._active_transaction = False
+                raise
+            
+        def execute(self, *args, **kwargs):
+            # Check if session is too old
+            if time.time() - self.created_at > 180:  # 3 minutes (reduced from 5)
+                logging.warning("Session timeout exceeded, attempting to clean up")
+                try:
+                    if self._active_transaction:
+                        self.rollback()
+                except Exception as e:
+                    logging.error(f"Error rolling back timed out session: {e}")
+                    pass
+                try:
+                    self.close()
+                except Exception as e:
+                    logging.error(f"Error closing timed out session: {e}")
+                    pass
+                raise SQLAlchemyError("Session timeout exceeded, please create a new session")
+                
+            try:
+                return super().execute(*args, **kwargs)
+            except Exception as e:
+                # Attempt to rollback on any execution error
+                if self._active_transaction:
+                    try:
+                        self.rollback()
+                    except:
+                        pass
+                raise
+            
+    # Use the timed session
+    Session = TimedSessionBase
+else:
+    # Regular session for SQLite
+    Session = sessionmaker(bind=engine)
 
-# Create a scoped session
+# Create a scoped session that removes sessions when they're done
 SessionLocal = scoped_session(Session)
 
 def add_column(engine, table_name, column):
@@ -259,5 +341,14 @@ def get_db():
             # SQLite-specific configuration
             db.execute(text("PRAGMA busy_timeout = 5000"))
         yield db
+    except Exception as e:
+        # Make sure to roll back any failed transactions
+        db.rollback()
+        logging.error(f"Database error: {e}")
+        raise
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception as e:
+            logging.error(f"Error closing database connection: {e}")
+            pass
