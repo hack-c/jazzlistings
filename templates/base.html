@@ -407,6 +407,7 @@
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/filters.css') }}">
 </head>
 <body>
     <nav>
@@ -437,5 +438,6 @@
         
         {% block content %}{% endblock %}
     </div>
+    <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
 </body>
 </html> 

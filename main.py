@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, time as datetime_time
 import time
 import random
 from tenacity import retry, stop_after_attempt, wait_exponential
-from flask import Flask, render_template, session, request, redirect, url_for, flash
+from flask import Flask, render_template, session, request, redirect, url_for, flash, jsonify
 from collections import defaultdict
 from sqlalchemy import select, String
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -97,6 +97,27 @@ def kill_existing_scrapers():
 def index(show_all=None):
     db = SessionLocal()
     try:
+        # Add support for AJAX requests
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
+        # Get filter parameters from either POST data (AJAX) or session
+        if is_ajax:
+            filter_data = {
+                'venues': request.args.getlist('venues[]'),
+                'neighborhoods': request.args.getlist('neighborhoods[]'),
+                'genres': request.args.getlist('genres[]')
+            }
+        else:
+            filter_data = None
+            if 'user_id' in session:
+                user = db.query(User).filter_by(id=session['user_id']).first()
+                if user:
+                    filter_data = {
+                        'venues': user.preferred_venues,
+                        'neighborhoods': user.preferred_neighborhoods,
+                        'genres': user.preferred_genres
+                    }
+
         # Add debug logging
         logging.info("Checking venue data:")
         venues = db.query(Venue).all()
@@ -112,17 +133,6 @@ def index(show_all=None):
         # Check if we should show all concerts
         show_all_concerts = (show_all == 'all' or request.args.get('show_all') == 'true')
         
-        # Get user preferences if logged in
-        user_preferences = None
-        if 'user_id' in session and not show_all_concerts:
-            user = db.query(User).filter_by(id=session['user_id']).first()
-            if user:
-                user_preferences = {
-                    'venues': user.preferred_venues,
-                    'neighborhoods': user.preferred_neighborhoods,
-                    'genres': user.preferred_genres
-                }
-        
         # Base query with joins
         query = (
             db.query(Concert)
@@ -134,28 +144,28 @@ def index(show_all=None):
         )
         
         # Apply preference filters if user is logged in and has preferences
-        if user_preferences and (user_preferences['venues'] or user_preferences['neighborhoods'] or user_preferences['genres']):
+        if filter_data and (filter_data['venues'] or filter_data['neighborhoods'] or filter_data['genres']):
             # Create a list to collect filter conditions
             filter_conditions = []
             
             # For each preference type, add a condition
-            if user_preferences['venues']:
-                filter_conditions.append(Concert.venue_id.in_(user_preferences['venues']))
+            if filter_data['venues']:
+                filter_conditions.append(Concert.venue_id.in_(filter_data['venues']))
                 
-            if user_preferences['neighborhoods']:
+            if filter_data['neighborhoods']:
                 # Ensure we have the Venue join
                 if not filter_conditions:  # Only add join if not already joined for venues
                     query = query.join(Venue)
-                filter_conditions.append(Venue.neighborhood.in_(user_preferences['neighborhoods']))
+                filter_conditions.append(Venue.neighborhood.in_(filter_data['neighborhoods']))
                 
-            if user_preferences['genres']:
+            if filter_data['genres']:
                 # Ensure we have the Venue join
                 if not filter_conditions:  # Only add join if not already joined
                     query = query.join(Venue)
                 
                 # For each preferred genre, check if it's in the venue's genre list
                 genre_conditions = []
-                for genre in user_preferences['genres']:
+                for genre in filter_data['genres']:
                     # This properly checks if a single genre is in the JSON array
                     genre_conditions.append(Venue.genres.cast(String).like(f'%"{genre}"%'))
                 
@@ -222,9 +232,31 @@ def index(show_all=None):
         event_count = sum(len(concerts) for date in concerts_by_date for concerts in concerts_by_date[date].values())
         
         # Add a flash message if this is the show_all view and there are events
-        if show_all_concerts and event_count > 0 and user_preferences:
+        if show_all_concerts and event_count > 0 and filter_data:
             flash("Showing all events. Your preference filters are currently disabled.")
         
+        if is_ajax:
+            # Return JSON response for AJAX requests
+            concerts_json = []
+            for date in sorted_dates:
+                for neighborhood in concerts_by_date[date]:
+                    for concert in concerts_by_date[date][neighborhood]:
+                        concerts_json.append({
+                            'date': date.strftime('%Y-%m-%d'),
+                            'neighborhood': neighborhood,
+                            'venue': concert['venue_name'],
+                            'artists': [artist.name for artist in concert['artists']],
+                            'times': [t.time.strftime('%H:%M') for t in concert['times']],
+                            'ticket_link': concert['ticket_link'],
+                            'special_notes': concert['special_notes'],
+                            'calendar_links': concert['calendar_links']
+                        })
+            return jsonify({
+                'concerts': concerts_json,
+                'event_count': event_count
+            })
+        
+        # Regular template rendering for non-AJAX requests
         return render_template(
             'index.html',
             concerts_by_date=concerts_by_date,
@@ -1236,6 +1268,67 @@ def reset_database():
             print("Database file deleted, will be recreated")
         else:
             print("No SQLite database file found to delete")
+
+@app.route('/get_filter_options', methods=['GET'])
+def get_filter_options():
+    """Get all available filter options"""
+    db = SessionLocal()
+    try:
+        venues = db.query(Venue).order_by(Venue.name).all()
+        neighborhoods = db.query(Venue.neighborhood).distinct().order_by(Venue.neighborhood)
+        neighborhoods = [n[0] for n in neighborhoods if n[0] and n[0].strip()]
+        
+        all_genres = set()
+        for venue in venues:
+            if venue.genres and isinstance(venue.genres, list):
+                all_genres.update(venue.genres)
+        all_genres.add('Movies')
+        genres = sorted(all_genres)
+        
+        # Get user's current preferences
+        user_prefs = {}
+        if 'user_id' in session:
+            user = db.query(User).filter_by(id=session['user_id']).first()
+            if user:
+                user_prefs = {
+                    'venues': user.preferred_venues,
+                    'neighborhoods': user.preferred_neighborhoods,
+                    'genres': user.preferred_genres
+                }
+        
+        return jsonify({
+            'venues': [{'id': str(v.id), 'name': v.name} for v in venues],
+            'neighborhoods': neighborhoods,
+            'genres': genres,
+            'userPreferences': user_prefs
+        })
+    finally:
+        db.close()
+
+@app.route('/save_preferences', methods=['POST'])
+def save_preferences():
+    """Save user preferences via AJAX"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+        
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(id=session['user_id']).first()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        # Update user preferences
+        user.preferred_venues = request.json.get('venues', [])
+        user.preferred_neighborhoods = request.json.get('neighborhoods', [])
+        user.preferred_genres = request.json.get('genres', [])
+        
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
 
 if __name__ == '__main__':
     import sys
