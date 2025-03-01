@@ -71,6 +71,13 @@ class User(Base):
         back_populates='favorited_by'
     )
 
+    # Add to existing User model:
+    newsletter_enabled = Column(Boolean, default=False)
+    newsletter_frequency = Column(String, default='weekly')
+    phone_number = Column(String)
+    auth_type = Column(String)  # 'google' or 'phone'
+    last_newsletter = Column(DateTime)
+
 # Association table for user favorites
 user_favorites = Table(
     'user_favorites',

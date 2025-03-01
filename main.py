@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, time as datetime_time
 import time
 import random
 from tenacity import retry, stop_after_attempt, wait_exponential
-from flask import Flask, render_template, session, request, redirect, url_for, flash
+from flask import Flask, render_template, session, request, redirect, url_for, flash, jsonify
 from collections import defaultdict
 from sqlalchemy import select, String
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -28,6 +28,10 @@ import threading
 import signal
 import psutil
 import sys
+from newsletter import NewsletterManager
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -843,6 +847,29 @@ def initialize_app():
     # Start the scraper thread
     scraper_thread = start_scraper_thread()
     atexit.register(lambda: scraper_thread.join(timeout=1.0))
+    
+    # Initialize newsletter scheduler
+    scheduler = BackgroundScheduler()
+    newsletter_manager = NewsletterManager()
+    
+    # Schedule daily newsletters
+    scheduler.add_job(
+        newsletter_manager.send_newsletters,
+        'cron',
+        hour=9,  # 9 AM
+        timezone=pytz.timezone('America/New_York')
+    )
+    
+    # Schedule weekly newsletters (changed to Sunday)
+    scheduler.add_job(
+        newsletter_manager.send_newsletters,
+        'cron',
+        day_of_week='sun',  # Sunday instead of Monday
+        hour=9,  # 9 AM
+        timezone=pytz.timezone('America/New_York')
+    )
+    
+    scheduler.start()
 
 def normalize_artist_name(name):
     """Normalize artist name for better matching"""
@@ -1236,6 +1263,96 @@ def reset_database():
             print("Database file deleted, will be recreated")
         else:
             print("No SQLite database file found to delete")
+
+@app.route('/newsletter/subscribe', methods=['POST'])
+def subscribe_newsletter():
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(id=session['user_id']).first()
+        
+        # Update newsletter preferences
+        user.newsletter_enabled = True
+        user.newsletter_frequency = request.form.get('frequency', 'weekly')
+        
+        # Update contact method
+        contact_method = request.form.get('contact_method')
+        if contact_method == 'email':
+            user.email = request.form.get('email')
+            user.phone_number = None
+        else:  # sms
+            user.phone_number = request.form.get('phone')
+            
+        db.commit()
+        flash("Successfully subscribed to newsletter!")
+        return redirect(url_for('preferences'))
+    finally:
+        db.close()
+
+@app.route('/newsletter/unsubscribe', methods=['POST'])
+def unsubscribe_newsletter():
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(id=session['user_id']).first()
+        user.newsletter_enabled = False
+        db.commit()
+        flash("Successfully unsubscribed from newsletter!")
+        return redirect(url_for('preferences'))
+    finally:
+        db.close()
+
+@app.route('/auth/google', methods=['POST'])
+def google_auth():
+    try:
+        token = request.json['token']
+        idinfo = id_token.verify_oauth2_token(
+            token, 
+            google_requests.Request(), 
+            os.getenv('GOOGLE_CLIENT_ID')
+        )
+        
+        db = SessionLocal()
+        user = db.query(User).filter_by(email=idinfo['email']).first()
+        
+        if not user:
+            user = User(
+                email=idinfo['email'],
+                auth_type='google',
+                name=idinfo.get('name', '')
+            )
+            db.add(user)
+            db.commit()
+            
+        session['user_id'] = user.id
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/auth/phone', methods=['POST'])
+def phone_auth():
+    phone = request.json['phone']
+    # Add phone verification logic here (e.g., using Twilio Verify)
+    # For now, just create/login the user
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(phone_number=phone).first()
+        if not user:
+            user = User(
+                phone_number=phone,
+                auth_type='phone'
+            )
+            db.add(user)
+            db.commit()
+        
+        session['user_id'] = user.id
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     import sys

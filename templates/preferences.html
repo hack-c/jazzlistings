@@ -1,50 +1,120 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="preferences-form">
-    <div class="header-row">
-        <h1>Your Preferences</h1>
-        <div class="header-buttons">
-            <a href="{{ url_for('index') }}" class="wp-block-button__link back-button">Back to Shows</a>
-            <button type="submit" form="preferences-form" class="wp-block-button__link">Save Preferences</button>
+<div class="container mt-4">
+    <h2>Your Preferences</h2>
+    
+    <!-- Newsletter Preferences -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Newsletter Settings</h3>
+        </div>
+        <div class="card-body">
+            {% if user.newsletter_enabled %}
+                <p class="text-success">You are currently subscribed to the weekly newsletter.</p>
+                <form action="{{ url_for('unsubscribe_newsletter') }}" method="post">
+                    <button type="submit" class="btn btn-danger">Unsubscribe</button>
+                </form>
+            {% else %}
+                <p>Subscribe to receive personalized weekly concert recommendations!</p>
+                <form action="{{ url_for('subscribe_newsletter') }}" method="post">
+                    <div class="form-group mb-3">
+                        <label for="frequency">How often would you like to receive updates?</label>
+                        <select class="form-control" id="frequency" name="frequency" required>
+                            <option value="daily" {% if user.newsletter_frequency == 'daily' %}selected{% endif %}>Daily</option>
+                            <option value="weekly" {% if user.newsletter_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contact_method">How would you like to receive updates?</label>
+                        <select class="form-control" id="contact_method" name="contact_method" required>
+                            <option value="email" {% if user.email %}selected{% endif %}>Email</option>
+                            <option value="sms" {% if user.phone_number %}selected{% endif %}>SMS</option>
+                        </select>
+                    </div>
+                    
+                    <div id="email_input" class="form-group" {% if not user.email %}style="display:none"{% endif %}>
+                        <label for="email">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               value="{{ user.email or '' }}">
+                    </div>
+                    
+                    <div id="phone_input" class="form-group" {% if not user.phone_number %}style="display:none"{% endif %}>
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" 
+                               value="{{ user.phone_number or '' }}"
+                               pattern="[0-9]{10}">
+                        <small class="form-text text-muted">Enter 10-digit number without spaces or dashes</small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Subscribe</button>
+                </form>
+            {% endif %}
         </div>
     </div>
-    
-    <form id="preferences-form" method="POST" action="{{ url_for('preferences') }}">
-        <div class="preference-section">
-            <h2>Venues</h2>
-            {% for venue in venues %}
-            <label class="checkbox-container">
-                <input type="checkbox" name="venues" value="{{ venue.id }}"
-                    {% if user.preferred_venues and venue.id|string in user.preferred_venues %}checked{% endif %}>
-                {{ venue.name }}
-            </label>
-            {% endfor %}
-        </div>
 
-        <div class="preference-section">
-            <h2>Neighborhoods</h2>
-            {% for neighborhood in neighborhoods %}
-            <label class="checkbox-container">
-                <input type="checkbox" name="neighborhoods" value="{{ neighborhood }}"
-                    {% if user.preferred_neighborhoods and neighborhood|string in user.preferred_neighborhoods %}checked{% endif %}>
-                {{ neighborhood }}
-            </label>
-            {% endfor %}
+    <!-- Existing preference sections -->
+    <div class="preferences-form">
+        <div class="header-row">
+            <h1>Your Preferences</h1>
+            <div class="header-buttons">
+                <a href="{{ url_for('index') }}" class="wp-block-button__link back-button">Back to Shows</a>
+                <button type="submit" form="preferences-form" class="wp-block-button__link">Save Preferences</button>
+            </div>
         </div>
+        
+        <form id="preferences-form" method="POST" action="{{ url_for('preferences') }}">
+            <div class="preference-section">
+                <h2>Venues</h2>
+                {% for venue in venues %}
+                <label class="checkbox-container">
+                    <input type="checkbox" name="venues" value="{{ venue.id }}"
+                        {% if user.preferred_venues and venue.id|string in user.preferred_venues %}checked{% endif %}>
+                    {{ venue.name }}
+                </label>
+                {% endfor %}
+            </div>
 
-        <div class="preference-section">
-            <h2>Genres</h2>
-            {% for genre in genres %}
-            <label class="checkbox-container">
-                <input type="checkbox" name="genres" value="{{ genre }}"
-                    {% if user.preferred_genres and genre|string in user.preferred_genres %}checked{% endif %}>
-                {{ genre }}
-            </label>
-            {% endfor %}
-        </div>
+            <div class="preference-section">
+                <h2>Neighborhoods</h2>
+                {% for neighborhood in neighborhoods %}
+                <label class="checkbox-container">
+                    <input type="checkbox" name="neighborhoods" value="{{ neighborhood }}"
+                        {% if user.preferred_neighborhoods and neighborhood|string in user.preferred_neighborhoods %}checked{% endif %}>
+                    {{ neighborhood }}
+                </label>
+                {% endfor %}
+            </div>
 
-        <button type="submit" class="wp-block-button__link">Save Preferences</button>
-    </form>
+            <div class="preference-section">
+                <h2>Genres</h2>
+                {% for genre in genres %}
+                <label class="checkbox-container">
+                    <input type="checkbox" name="genres" value="{{ genre }}"
+                        {% if user.preferred_genres and genre|string in user.preferred_genres %}checked{% endif %}>
+                    {{ genre }}
+                </label>
+                {% endfor %}
+            </div>
+
+            <button type="submit" class="wp-block-button__link">Save Preferences</button>
+        </form>
+    </div>
 </div>
+
+<script>
+document.getElementById('contact_method').addEventListener('change', function() {
+    const emailDiv = document.getElementById('email_input');
+    const phoneDiv = document.getElementById('phone_input');
+    
+    if (this.value === 'email') {
+        emailDiv.style.display = 'block';
+        phoneDiv.style.display = 'none';
+    } else {
+        emailDiv.style.display = 'none';
+        phoneDiv.style.display = 'block';
+    }
+});
+</script>
 {% endblock %} 
