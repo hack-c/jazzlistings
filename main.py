@@ -829,16 +829,15 @@ def initialize_app():
     """Initialize the application"""
     init_db()
     
-    # Run constraint removal migration
-    print("\nChecking database constraints...")
+    # Run migrations
+    print("\nRunning database migrations...")
     try:
-        from migrations.remove_unique_constraint import run_migration
-        if run_migration():
-            print("Successfully removed unique constraint")
-        else:
-            print("Note: unique constraint may still be present")
+        # Run newsletter fields migration
+        from migrations.add_newsletter_fields import upgrade
+        upgrade()
+        print("Newsletter fields migration successful")
     except Exception as e:
-        print(f"Warning: Could not run constraint migration: {e}")
+        print(f"Warning: Newsletter migration error: {e}")
     
     # Clean placeholder artists on startup
     print("\nCleaning placeholder artists from database...")
