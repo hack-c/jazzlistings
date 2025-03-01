@@ -32,6 +32,7 @@ from newsletter import NewsletterManager
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from apscheduler.schedulers.background import BackgroundScheduler
+from sqlalchemy import text
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -829,15 +830,9 @@ def initialize_app():
     """Initialize the application"""
     init_db()
     
-    # Run migrations
-    print("\nRunning database migrations...")
-    try:
-        # Run newsletter fields migration
-        from migrations.add_newsletter_fields import upgrade
-        upgrade()
-        print("Newsletter fields migration successful")
-    except Exception as e:
-        print(f"Warning: Newsletter migration error: {e}")
+    # Ensure newsletter columns exist
+    print("\nEnsuring newsletter columns exist...")
+    ensure_newsletter_columns()
     
     # Clean placeholder artists on startup
     print("\nCleaning placeholder artists from database...")
@@ -1352,6 +1347,72 @@ def phone_auth():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+def ensure_newsletter_columns():
+    """Ensure newsletter columns exist in users table"""
+    from sqlalchemy import text
+    
+    db = SessionLocal()
+    try:
+        # SQL commands to add columns if they don't exist
+        commands = [
+            """
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                             WHERE table_name='users' AND column_name='newsletter_enabled') THEN
+                    ALTER TABLE users ADD COLUMN newsletter_enabled BOOLEAN NOT NULL DEFAULT false;
+                END IF;
+            END $$;
+            """,
+            """
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                             WHERE table_name='users' AND column_name='newsletter_frequency') THEN
+                    ALTER TABLE users ADD COLUMN newsletter_frequency VARCHAR DEFAULT 'weekly';
+                END IF;
+            END $$;
+            """,
+            """
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                             WHERE table_name='users' AND column_name='phone_number') THEN
+                    ALTER TABLE users ADD COLUMN phone_number VARCHAR;
+                END IF;
+            END $$;
+            """,
+            """
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                             WHERE table_name='users' AND column_name='auth_type') THEN
+                    ALTER TABLE users ADD COLUMN auth_type VARCHAR;
+                END IF;
+            END $$;
+            """,
+            """
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                             WHERE table_name='users' AND column_name='last_newsletter') THEN
+                    ALTER TABLE users ADD COLUMN last_newsletter TIMESTAMP WITH TIME ZONE;
+                END IF;
+            END $$;
+            """
+        ]
+        
+        for command in commands:
+            db.execute(text(command))
+        db.commit()
+        print("Newsletter columns added successfully")
+        
+    except Exception as e:
+        print(f"Error ensuring newsletter columns: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 if __name__ == '__main__':
     import sys
