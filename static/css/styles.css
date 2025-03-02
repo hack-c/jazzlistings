@@ -1,29 +1,51 @@
-.date-header {
-    position: sticky;
-    top: 0;
-    background-color: var(--wp--preset--color--black);
-    padding: 15px 0;
-    margin: 0;
-    z-index: 1000;
-    border-bottom: 1px solid var(--wp--preset--color--cyan-bluish-gray);
-    box-shadow: 0 4px 6px -6px rgba(0, 0, 0, 0.8);
+.concerts {
+    position: relative;
+    padding: 20px;
 }
 
 .date-section {
+    position: relative;
     margin-bottom: 40px;
-    padding-top: 20px;
+}
+
+.date-header {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 2000;
+    padding: 15px 20px;
+    margin: 0 -20px;
+    background-color: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--wp--preset--color--white);
+    transition: transform 0.2s ease;
 }
 
 .date-section:first-child {
     padding-top: 0;
 }
 
-.concerts {
-    position: relative;
-}
-
 .neighborhood-section {
     position: relative;
     z-index: 1;
+    margin-top: 20px;
+    padding: 20px;
     background-color: var(--wp--preset--color--black);
+}
+
+.concert-card {
+    position: relative;
+    z-index: 1;
+    margin-top: 20px;
+}
+
+.header-row {
+    position: relative;
+    z-index: 3000;
+    margin-bottom: 30px;
 } 
