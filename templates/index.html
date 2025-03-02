@@ -24,7 +24,7 @@
     
     {% for date in sorted_dates %}
     <div class="date-section">
-        <h2 class="date-header">{{ date.strftime('%A, %B %d, %Y') }}</h2>
+        <div class="date-header">{{ date.strftime('%A, %B %d, %Y') }}</div>
         
         {% for neighborhood, concerts in concerts_by_date[date].items() %}
         <div class="neighborhood-section">
