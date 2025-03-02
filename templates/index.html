@@ -16,20 +16,14 @@
         </div>
     </div>
     
-    <!-- Add this right after the opening of the main content area, before the concert listings -->
-    <div id="sticky-date" class="sticky-date-header">
-        <span id="current-date">Current Date</span>
-    </div>
-    
     {% if event_count == 0 %}
     <div class="no-events">
         <p>No events match your current preferences. <a href="{{ url_for('index', show_all='true') }}">View all events</a> or <a href="{{ url_for('preferences') }}">update your preferences</a>.</p>
     </div>
     {% endif %}
     
-    <!-- Modify the date headers to add data attributes -->
     {% for date in sorted_dates %}
-    <div class="date-section" data-date="{{ date.strftime('%Y-%m-%d') }}">
+    <div class="date-section">
         <h2 class="date-header">{{ date.strftime('%A, %B %d, %Y') }}</h2>
         
         {% for neighborhood, concerts in concerts_by_date[date].items() %}

@@ -1,27 +1,29 @@
-.sticky-date-header {
+.date-header {
     position: sticky;
     top: 0;
-    background-color: rgba(255, 255, 255, 0.95);
-    padding: 10px 20px;
+    background-color: var(--wp--preset--color--black);
+    padding: 15px 0;
+    margin: 0;
     z-index: 1000;
-    border-bottom: 1px solid #e0e0e0;
-    backdrop-filter: blur(5px);
-    display: none; /* Hidden by default, shown by JavaScript */
-    transition: transform 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.sticky-date-header.visible {
-    display: block;
+    border-bottom: 1px solid var(--wp--preset--color--cyan-bluish-gray);
+    box-shadow: 0 4px 6px -6px rgba(0, 0, 0, 0.8);
 }
 
 .date-section {
-    scroll-margin-top: 60px; /* Ensures content doesn't get hidden behind sticky header */
+    margin-bottom: 40px;
+    padding-top: 20px;
 }
 
-.date-header {
-    margin-top: 20px;
-    margin-bottom: 15px;
-    padding: 10px 0;
-    border-bottom: 2px solid #eee;
+.date-section:first-child {
+    padding-top: 0;
+}
+
+.concerts {
+    position: relative;
+}
+
+.neighborhood-section {
+    position: relative;
+    z-index: 1;
+    background-color: var(--wp--preset--color--black);
 } 
