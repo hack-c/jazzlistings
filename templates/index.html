@@ -23,7 +23,7 @@
     {% endif %}
     
     {% for date in sorted_dates %}
-    <div class="date-section">
+    <div class="date-section" data-date="{{ date.strftime('%A, %B %d, %Y') }}">
         <h2>{{ date.strftime('%A, %B %d, %Y') }}</h2>
         
         {% for neighborhood, concerts in concerts_by_date[date].items() %}
@@ -74,4 +74,63 @@
     </div>
     {% endfor %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const stickyHeader = document.getElementById('sticky-date-header');
+    const dateSections = document.querySelectorAll('.date-section');
+    
+    if (dateSections.length === 0) return;
+    
+    let currentDateSection = null;
+    let navHeight = document.querySelector('nav').offsetHeight;
+    
+    // Function to update the sticky header based on scroll position
+    function updateStickyHeader() {
+        // Get scroll position
+        const scrollPosition = window.scrollY + navHeight + 20;
+        
+        // Find the current date section
+        let newCurrentSection = null;
+        
+        // Iterate through sections backward to find the one we're currently in
+        for (let i = dateSections.length - 1; i >= 0; i--) {
+            const section = dateSections[i];
+            const sectionTop = section.offsetTop;
+            
+            if (scrollPosition >= sectionTop) {
+                newCurrentSection = section;
+                break;
+            }
+        }
+        
+        // If no section is found or we're above the first section, don't show the sticky header
+        if (!newCurrentSection || window.scrollY < dateSections[0].offsetTop - navHeight) {
+            stickyHeader.classList.remove('visible');
+            currentDateSection = null;
+            return;
+        }
+        
+        // If we've changed sections, update the sticky header
+        if (newCurrentSection !== currentDateSection) {
+            currentDateSection = newCurrentSection;
+            const dateText = newCurrentSection.dataset.date;
+            stickyHeader.textContent = dateText;
+            stickyHeader.classList.add('visible');
+        }
+    }
+    
+    // Update navHeight when window is resized
+    window.addEventListener('resize', function() {
+        navHeight = document.querySelector('nav').offsetHeight;
+        updateStickyHeader();
+    });
+    
+    // Add scroll event listener
+    window.addEventListener('scroll', updateStickyHeader);
+    
+    // Initialize on page load
+    updateStickyHeader();
+});
+</script>
 {% endblock %} 
