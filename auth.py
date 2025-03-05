@@ -35,8 +35,8 @@ def get_spotify_oauth():
     print(f"Redirect URI set to: {SPOTIFY_REDIRECT_URI}")  # Debug print
     return oauth
 
-@auth.route('/login')
-def login():
+@auth.route('/spotify_login')
+def spotify_login():
     """Redirect to Spotify login"""
     try:
         print("\nSpotify OAuth Debug Info:")

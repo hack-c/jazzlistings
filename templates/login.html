@@ -5,7 +5,7 @@
     <h2>Login</h2>
     
     <div class="oauth-buttons">
-        <a href="{{ url_for('auth.login') }}" class="oauth-button spotify-button">
+        <a href="{{ url_for('auth.spotify_login') }}" class="oauth-button spotify-button">
             <i class="fab fa-spotify"></i> Login with Spotify
         </a>
         <a href="{{ url_for('google_auth.login') }}" class="oauth-button google-button">
@@ -13,22 +13,6 @@
         </a>
     </div>
     
-    <div class="login-divider">
-        <span>or</span>
-    </div>
-    
-    <form method="POST">
-        <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" required>
-        </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-        <button type="submit" class="login-button">Login</button>
-    </form>
-    
-    <p class="login-footer">Don't have an account? <a href="{{ url_for('auth.signup') }}">Sign up</a></p>
+    <p class="login-footer">Choose your preferred login method above</p>
 </div>
 {% endblock %} 
