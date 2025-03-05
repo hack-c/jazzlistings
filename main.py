@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import concurrent.futures
 import os
 from auth import auth
+from google_auth import google_auth
 from dotenv import load_dotenv
 from threading import Thread
 import atexit
@@ -32,9 +33,15 @@ import sys
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
 app.register_blueprint(auth)
+app.register_blueprint(google_auth, url_prefix='/google')
 
 # Force HTTPS
 app.config['PREFERRED_URL_SCHEME'] = 'https'
+
+# Route for login page
+@app.route('/login')
+def login_page():
+    return render_template('login.html')
 
 # Add before/after request handlers to redirect HTTP to HTTPS
 @app.before_request
@@ -49,6 +56,9 @@ print("Environment Variables:")
 print(f"SPOTIFY_CLIENT_ID: {'set' if os.getenv('SPOTIFY_CLIENT_ID') else 'not set'}")
 print(f"SPOTIFY_CLIENT_SECRET: {'set' if os.getenv('SPOTIFY_CLIENT_SECRET') else 'not set'}")
 print(f"SPOTIFY_REDIRECT_URI: {os.getenv('SPOTIFY_REDIRECT_URI')}")
+print(f"GOOGLE_CLIENT_ID: {'set' if os.getenv('GOOGLE_CLIENT_ID') else 'not set'}")
+print(f"GOOGLE_CLIENT_SECRET: {'set' if os.getenv('GOOGLE_CLIENT_SECRET') else 'not set'}")
+print(f"GOOGLE_REDIRECT_URI: {os.getenv('GOOGLE_REDIRECT_URI')}")
 
 # Configure root logger to only show WARNING and above
 logging.basicConfig(level=logging.WARNING)

@@ -443,6 +443,129 @@
             margin-bottom: 10px;
             border-radius: 0;
         }
+        
+        /* Login styles */
+        .login-options {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .login-form {
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 30px;
+            background-color: rgba(50, 55, 60, 0.8);
+            border: 1px solid var(--wp--preset--color--cyan-bluish-gray);
+        }
+        
+        .login-form h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--wp--preset--color--white);
+        }
+        
+        .oauth-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .oauth-button {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 12px;
+            border-radius: 0;
+            text-decoration: none;
+            color: white;
+            font-weight: 400;
+            transition: all 0.3s ease;
+            gap: 10px;
+        }
+        
+        .spotify-button {
+            background-color: #1DB954;
+        }
+        
+        .spotify-button:hover {
+            background-color: #1ED760;
+        }
+        
+        .google-button {
+            background-color: #4285F4;
+        }
+        
+        .google-button:hover {
+            background-color: #5A9DF8;
+        }
+        
+        .login-divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .login-divider::before,
+        .login-divider::after {
+            content: "";
+            flex: 1;
+            border-bottom: 1px solid var(--wp--preset--color--cyan-bluish-gray);
+        }
+        
+        .login-divider span {
+            padding: 0 10px;
+            color: var(--wp--preset--color--cyan-bluish-gray);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--wp--preset--color--white);
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            background-color: #1E1E1E;
+            border: 1px solid var(--wp--preset--color--cyan-bluish-gray);
+            color: var(--wp--preset--color--white);
+        }
+        
+        .login-button {
+            width: 100%;
+            padding: 12px;
+            background-color: transparent;
+            border: 1px solid var(--wp--preset--color--white);
+            color: var(--wp--preset--color--white);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .login-button:hover {
+            background-color: var(--wp--preset--color--white);
+            color: var(--wp--preset--color--black);
+        }
+        
+        .login-footer {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--wp--preset--color--cyan-bluish-gray);
+        }
+        
+        .login-footer a {
+            color: var(--wp--preset--color--white);
+            text-decoration: none;
+        }
+        
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
@@ -458,7 +581,7 @@
                 <a href="{{ url_for('preferences') }}" class="wp-block-button__link">Preferences</a>
                 <a href="{{ url_for('auth.logout') }}" class="wp-block-button__link">Logout</a>
             {% else %}
-                <a href="{{ url_for('auth.login') }}" class="wp-block-button__link">Login with Spotify</a>
+                <a href="{{ url_for('login_page') }}" class="wp-block-button__link">Login / Sign Up</a>
             {% endif %}
         </div>
     </nav>
