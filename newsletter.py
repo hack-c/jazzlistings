@@ -69,7 +69,7 @@ def get_upcoming_events_for_user(user, days=None):
     # Determine number of days to look ahead based on frequency if not specified
     if days is None:
         if user.newsletter_frequency == 'daily':
-            days = 3  # Daily newsletters show the next 3 days
+            days = 7  # Daily newsletters show the next 7 days
         else:
             days = 14  # Weekly/biweekly/monthly show next 2 weeks
     db = SessionLocal()
@@ -280,8 +280,8 @@ def schedule_newsletters():
                 try:
                     # Check timing
                     if should_send_newsletter(user):
-                        # Get upcoming events for next 3 days
-                        events = get_upcoming_events_for_user(user, days=3)
+                        # Get upcoming events for next 7 days
+                        events = get_upcoming_events_for_user(user, days=7)
                         
                         # Only send if there are events to share
                         if events:
@@ -295,7 +295,7 @@ def schedule_newsletters():
                                 db.commit()
                                 logger.info(f"Daily newsletter sent to {user.email}")
                         else:
-                            logger.info(f"No events in next 3 days for {user.email}")
+                            logger.info(f"No events in next 7 days for {user.email}")
                     else:
                         logger.info(f"Skipping daily newsletter for {user.email} (not due yet)")
                 except Exception as e:
