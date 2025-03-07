@@ -78,6 +78,7 @@ def callback():
     stored_state = session.get('google_state')
     
     # Verify state
+    logger.info(f"Checking state: received={state}, stored={stored_state}")
     if not state or state != stored_state:
         logger.error("State mismatch in Google callback")
         flash("State verification failed. Please try again.")
@@ -85,6 +86,9 @@ def callback():
     
     try:
         flow = get_google_flow()
+        # Set the state on the flow object to match the state from the request
+        # This is important for the OAuth2 validation to work correctly
+        flow.state = state
         flow.fetch_token(authorization_response=request.url)
         
         credentials = flow.credentials
