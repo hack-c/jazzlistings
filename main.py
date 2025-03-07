@@ -32,7 +32,7 @@ import sys
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
-app.register_blueprint(auth)
+app.register_blueprint(auth, url_prefix='/spotify')
 app.register_blueprint(google_auth, url_prefix='/google')
 
 # Force HTTPS

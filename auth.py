@@ -12,7 +12,7 @@ auth = Blueprint('auth', __name__)
 
 SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
-SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://localhost:5000/callback')
+SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://localhost:5000/spotify/callback')
 
 def get_spotify_oauth():
     logger.info("Initializing Spotify OAuth")
@@ -54,7 +54,7 @@ def spotify_login():
         return f"Error: {str(e)}", 500
 
 @auth.route('/callback')
-def callback():
+def spotify_callback():
     """Handle Spotify OAuth callback"""
     print("\nCallback Debug Info:")
     print(f"Request URL: {request.url}")
