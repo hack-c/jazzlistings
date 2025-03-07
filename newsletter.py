@@ -165,10 +165,13 @@ def generate_newsletter_html(user, events):
     Generate HTML content for the email newsletter
     """
     template = jinja_env.get_template('email.html')
+    # Get site domain from environment or use default
+    site_domain = os.environ.get('SITE_DOMAIN', 'jazzlistings.com')
     return template.render(
         user_email=user.email,
         events=events,
-        frequency=user.newsletter_frequency.capitalize()
+        frequency=user.newsletter_frequency.capitalize(),
+        site_domain=site_domain
     )
 
 def send_newsletter(user, html_content):

@@ -16,7 +16,7 @@ google_auth = Blueprint('google_auth', __name__)
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 # Make sure the Google redirect URI includes the /google prefix
-GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5000/google/callback')
+GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'https://localhost:5000/google/callback')
 
 # Scopes to request
 SCOPES = [
