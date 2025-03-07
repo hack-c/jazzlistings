@@ -924,17 +924,45 @@ def admin_send_newsletters():
         
 @app.route('/admin/force_send_newsletters', methods=['GET'])
 def admin_force_send_newsletters():
-    """Admin route to force send newsletters regardless of timing rules"""
+    """Admin route to force send newsletter only to the current user"""
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
         
     try:
-        process_newsletters(force=True)
-        flash("Newsletters force-sent successfully!")
+        db = SessionLocal()
+        user = db.query(User).filter_by(id=session['user_id']).first()
+        
+        if not user:
+            flash("User not found.")
+            return redirect(url_for('index'))
+            
+        from newsletter import get_upcoming_events_for_user, generate_newsletter_html, send_newsletter
+        import pytz
+        from datetime import datetime
+        
+        # Get events based on user's preferences and frequency
+        events = get_upcoming_events_for_user(user)
+        
+        if not events:
+            flash("No events found for your preferences.")
+            return redirect(url_for('index'))
+            
+        # Generate and send newsletter
+        html_content = generate_newsletter_html(user, events)
+        if send_newsletter(user, html_content):
+            # Update last sent timestamp
+            user.last_newsletter_sent = datetime.now(pytz.UTC)
+            db.commit()
+            flash("Newsletter sent successfully to your email!")
+        else:
+            flash("Error sending newsletter. Please check logs.")
+            
         return redirect(url_for('index'))
     except Exception as e:
-        flash(f"Error force-sending newsletters: {str(e)}")
+        flash(f"Error sending newsletter: {str(e)}")
         return redirect(url_for('index'))
+    finally:
+        db.close()
 
 @app.route('/preferences', methods=['GET', 'POST'])
 def preferences():
