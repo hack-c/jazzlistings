@@ -8,6 +8,9 @@ from database import SessionLocal
 import logging
 import json
 
+# Allow insecure local OAuth for development
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
 logger = logging.getLogger('concert_app')
 
 google_auth = Blueprint('google_auth', __name__)
