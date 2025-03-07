@@ -129,7 +129,20 @@ def get_upcoming_events_for_user(user, days=14):
         # Sort by date
         events.sort(key=lambda x: x['date'])
         
-        return events
+        # Group events by date and neighborhood
+        grouped_events = {}
+        for event in events:
+            date_key = event['date']
+            if date_key not in grouped_events:
+                grouped_events[date_key] = {}
+            
+            neighborhood = event['neighborhood'] or 'Other'
+            if neighborhood not in grouped_events[date_key]:
+                grouped_events[date_key][neighborhood] = []
+            
+            grouped_events[date_key][neighborhood].append(event)
+            
+        return grouped_events
     finally:
         db.close()
 
