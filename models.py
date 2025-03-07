@@ -65,6 +65,11 @@ class User(Base):
     preferred_genres = Column(JSON, default=lambda: [], nullable=False)
     preferred_neighborhoods = Column(JSON, default=lambda: [], nullable=False)
     
+    # Newsletter preferences
+    newsletter_subscribed = Column(Boolean, default=False)
+    newsletter_frequency = Column(String, default="weekly")  # weekly, biweekly, monthly
+    last_newsletter_sent = Column(DateTime(timezone=True), nullable=True)
+    
     # Relationship to track favorite concerts
     favorite_concerts = relationship(
         'Concert',

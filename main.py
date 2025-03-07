@@ -29,6 +29,7 @@ import threading
 import signal
 import psutil
 import sys
+from newsletter import schedule_newsletters, process_newsletters
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev')
@@ -813,6 +814,9 @@ def run_scraper_schedule():
     # Schedule the job to run daily at 4 AM
     schedule.every().day.at("04:00").do(scheduled_job)
     
+    # Schedule the newsletter job to run daily at 7 AM
+    schedule_newsletters()
+    
     # Run the scraper immediately on startup
     logging.info("Running initial scraper")
     scheduled_job()
@@ -903,6 +907,20 @@ def admin_update_venues():
     except Exception as e:
         flash(f"Error updating venue data: {str(e)}")
         return redirect(url_for('index'))
+        
+@app.route('/admin/send_newsletters', methods=['GET'])
+def admin_send_newsletters():
+    """Admin route to manually trigger newsletter sending"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    try:
+        process_newsletters()
+        flash("Newsletters processed successfully!")
+        return redirect(url_for('index'))
+    except Exception as e:
+        flash(f"Error sending newsletters: {str(e)}")
+        return redirect(url_for('index'))
 
 @app.route('/preferences', methods=['GET', 'POST'])
 def preferences():
@@ -924,10 +942,18 @@ def preferences():
                 neighborhoods = request.form.getlist('neighborhoods')
                 genres = request.form.getlist('genres')
                 
+                # Get newsletter preferences
+                newsletter_subscribed = 'newsletter_subscribed' in request.form
+                newsletter_frequency = request.form.get('newsletter_frequency', 'weekly')
+                
                 # Update user preferences
                 user.preferred_venues = venue_ids
                 user.preferred_neighborhoods = neighborhoods
                 user.preferred_genres = genres
+                
+                # Update newsletter preferences
+                user.newsletter_subscribed = newsletter_subscribed
+                user.newsletter_frequency = newsletter_frequency
                 
                 db.commit()
                 flash("Preferences saved successfully!")

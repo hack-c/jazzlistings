@@ -362,7 +362,7 @@
             gap: 15px;
         }
 
-        .header-buttons {
+        .header-buttons, .admin-actions {
             display: flex;
             gap: 10px;
             align-items: center;
@@ -585,6 +585,12 @@
             {% if user %}
                 <span>Welcome, {{ user.email }}!</span>
                 <a href="{{ url_for('preferences') }}" class="wp-block-button__link">Preferences</a>
+                {% if user.id == 1 %} <!-- Simple admin check based on first user -->
+                <div class="admin-actions">
+                    <a href="{{ url_for('admin_update_venues') }}" class="wp-block-button__link">Update Venues</a>
+                    <a href="{{ url_for('admin_send_newsletters') }}" class="wp-block-button__link">Send Newsletters</a>
+                </div>
+                {% endif %}
                 <a href="{{ url_for('auth.logout') }}" class="wp-block-button__link">Logout</a>
             {% else %}
                 <a href="{{ url_for('login_page') }}" class="wp-block-button__link">Login / Sign Up</a>

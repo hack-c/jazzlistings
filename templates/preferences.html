@@ -44,7 +44,51 @@
             {% endfor %}
         </div>
 
+        <div class="preference-section">
+            <h2>Newsletter Preferences</h2>
+            <div class="newsletter-options">
+                <label class="checkbox-container">
+                    <input type="checkbox" name="newsletter_subscribed" value="true"
+                        {% if user.newsletter_subscribed %}checked{% endif %}>
+                    Subscribe to newsletter with personalized event recommendations
+                </label>
+                
+                <div class="newsletter-frequency" {% if not user.newsletter_subscribed %}style="display: none;"{% endif %}>
+                    <h3>Newsletter Frequency</h3>
+                    <label class="radio-container">
+                        <input type="radio" name="newsletter_frequency" value="weekly"
+                            {% if not user.newsletter_frequency or user.newsletter_frequency == 'weekly' %}checked{% endif %}>
+                        Weekly (Sunday)
+                    </label>
+                    <label class="radio-container">
+                        <input type="radio" name="newsletter_frequency" value="biweekly"
+                            {% if user.newsletter_frequency == 'biweekly' %}checked{% endif %}>
+                        Bi-weekly (Every other Sunday)
+                    </label>
+                    <label class="radio-container">
+                        <input type="radio" name="newsletter_frequency" value="monthly"
+                            {% if user.newsletter_frequency == 'monthly' %}checked{% endif %}>
+                        Monthly (First Sunday of month)
+                    </label>
+                </div>
+            </div>
+        </div>
+
         <button type="submit" class="wp-block-button__link">Save Preferences</button>
     </form>
 </div>
+
+<script>
+    // Show/hide newsletter frequency options based on subscription status
+    document.addEventListener('DOMContentLoaded', function() {
+        const newsletterCheckbox = document.querySelector('input[name="newsletter_subscribed"]');
+        const frequencyContainer = document.querySelector('.newsletter-frequency');
+        
+        if (newsletterCheckbox) {
+            newsletterCheckbox.addEventListener('change', function() {
+                frequencyContainer.style.display = this.checked ? 'block' : 'none';
+            });
+        }
+    });
+</script>
 {% endblock %} 
