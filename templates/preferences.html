@@ -56,9 +56,14 @@
                 <div class="newsletter-frequency" {% if not user.newsletter_subscribed %}style="display: none;"{% endif %}>
                     <h3>Newsletter Frequency</h3>
                     <label class="radio-container">
+                        <input type="radio" name="newsletter_frequency" value="daily"
+                            {% if user.newsletter_frequency == 'daily' %}checked{% endif %}>
+                        Daily (Morning preview of next 3 days)
+                    </label>
+                    <label class="radio-container">
                         <input type="radio" name="newsletter_frequency" value="weekly"
                             {% if not user.newsletter_frequency or user.newsletter_frequency == 'weekly' %}checked{% endif %}>
-                        Weekly (Sunday)
+                        Weekly (Sunday, next 2 weeks)
                     </label>
                     <label class="radio-container">
                         <input type="radio" name="newsletter_frequency" value="biweekly"

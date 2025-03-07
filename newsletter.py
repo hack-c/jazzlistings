@@ -41,7 +41,11 @@ def should_send_newsletter(user):
         last_sent = user.last_newsletter_sent.astimezone(eastern)
     
     # Check based on frequency preference
-    if user.newsletter_frequency == 'weekly':
+    if user.newsletter_frequency == 'daily':
+        # Send if it's been more than 20 hours since the last newsletter
+        # This allows for some wiggle room in the scheduling
+        return (now - last_sent) > timedelta(hours=20)
+    elif user.newsletter_frequency == 'weekly':
         # Send if it's been more than 6 days since the last newsletter
         return (now - last_sent) > timedelta(days=6)
     elif user.newsletter_frequency == 'biweekly':
@@ -54,10 +58,20 @@ def should_send_newsletter(user):
     # Default: don't send
     return False
 
-def get_upcoming_events_for_user(user, days=14):
+def get_upcoming_events_for_user(user, days=None):
     """
-    Get upcoming events for the next 'days' days based on user preferences.
+    Get upcoming events based on user preferences and newsletter frequency.
+    
+    Args:
+        user: The user to get events for
+        days: Number of days to look ahead (overrides automatic calculation based on frequency)
     """
+    # Determine number of days to look ahead based on frequency if not specified
+    if days is None:
+        if user.newsletter_frequency == 'daily':
+            days = 3  # Daily newsletters show the next 3 days
+        else:
+            days = 14  # Weekly/biweekly/monthly show next 2 weeks
     db = SessionLocal()
     try:
         # Use Eastern timezone for date comparisons
@@ -212,7 +226,8 @@ def process_newsletters(force=False):
             try:
                 # Check if we should send newsletter based on frequency (unless force=True)
                 if force or should_send_newsletter(user):
-                    # Get upcoming events for user
+                    # Get upcoming events for user based on their newsletter frequency
+                    # Daily users get 3 days ahead, others get 14 days ahead
                     events = get_upcoming_events_for_user(user)
                     
                     # Only send if there are events to share
@@ -245,8 +260,102 @@ def schedule_newsletters():
     """
     import schedule
     
-    # Run at 7 AM Eastern every day
-    # The should_send_newsletter function will determine which users should receive newsletters
-    schedule.every().day.at("07:00").do(process_newsletters)
+    # Function to process only daily newsletters
+    def process_daily_newsletters():
+        db = SessionLocal()
+        try:
+            # Get users subscribed to daily newsletters
+            users = db.query(User).filter(
+                User.is_active == True,
+                User.newsletter_subscribed == True,
+                User.newsletter_frequency == 'daily'
+            ).all()
+            
+            if not users:
+                logger.info("No users subscribed to daily newsletters")
+                return
+                
+            logger.info(f"Processing daily newsletters for {len(users)} users")
+            for user in users:
+                try:
+                    # Check timing
+                    if should_send_newsletter(user):
+                        # Get upcoming events for next 3 days
+                        events = get_upcoming_events_for_user(user, days=3)
+                        
+                        # Only send if there are events to share
+                        if events:
+                            # Generate newsletter content
+                            html_content = generate_newsletter_html(user, events)
+                            
+                            # Send newsletter
+                            if send_newsletter(user, html_content):
+                                # Update last sent timestamp
+                                user.last_newsletter_sent = datetime.now(pytz.UTC)
+                                db.commit()
+                                logger.info(f"Daily newsletter sent to {user.email}")
+                        else:
+                            logger.info(f"No events in next 3 days for {user.email}")
+                    else:
+                        logger.info(f"Skipping daily newsletter for {user.email} (not due yet)")
+                except Exception as e:
+                    logger.error(f"Error processing daily newsletter for {user.email}: {str(e)}")
+                    db.rollback()
+        except Exception as e:
+            logger.error(f"Error processing daily newsletters: {str(e)}")
+        finally:
+            db.close()
+    
+    # Function to process weekly/biweekly/monthly newsletters
+    def process_regular_newsletters():
+        db = SessionLocal()
+        try:
+            # Get users not subscribed to daily newsletters
+            users = db.query(User).filter(
+                User.is_active == True,
+                User.newsletter_subscribed == True,
+                User.newsletter_frequency != 'daily'
+            ).all()
+            
+            if not users:
+                logger.info("No users subscribed to weekly/biweekly/monthly newsletters")
+                return
+                
+            logger.info(f"Processing regular newsletters for {len(users)} users")
+            for user in users:
+                try:
+                    # Check timing
+                    if should_send_newsletter(user):
+                        # Get upcoming events for user (defaults to 14 days)
+                        events = get_upcoming_events_for_user(user)
+                        
+                        # Only send if there are events to share
+                        if events:
+                            # Generate newsletter content
+                            html_content = generate_newsletter_html(user, events)
+                            
+                            # Send newsletter
+                            if send_newsletter(user, html_content):
+                                # Update last sent timestamp
+                                user.last_newsletter_sent = datetime.now(pytz.UTC)
+                                db.commit()
+                                logger.info(f"Regular newsletter sent to {user.email}")
+                        else:
+                            logger.info(f"No events to send to {user.email}")
+                    else:
+                        logger.info(f"Skipping newsletter for {user.email} (not due yet)")
+                except Exception as e:
+                    logger.error(f"Error processing newsletter for {user.email}: {str(e)}")
+                    db.rollback()
+        except Exception as e:
+            logger.error(f"Error processing regular newsletters: {str(e)}")
+        finally:
+            db.close()
+    
+    # Run daily newsletters at 7 AM Eastern every day
+    schedule.every().day.at("07:00").do(process_daily_newsletters)
+    
+    # Run weekly/biweekly/monthly newsletters on Sunday at 8 AM Eastern
+    schedule.every().sunday.at("08:00").do(process_regular_newsletters)
     
     logger.info("Newsletter scheduler initialized")

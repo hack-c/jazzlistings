@@ -67,7 +67,7 @@ class User(Base):
     
     # Newsletter preferences
     newsletter_subscribed = Column(Boolean, default=False)
-    newsletter_frequency = Column(String, default="weekly")  # weekly, biweekly, monthly
+    newsletter_frequency = Column(String, default="weekly")  # daily, weekly, biweekly, monthly
     last_newsletter_sent = Column(DateTime(timezone=True), nullable=True)
     
     # Relationship to track favorite concerts
