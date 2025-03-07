@@ -921,6 +921,20 @@ def admin_send_newsletters():
     except Exception as e:
         flash(f"Error sending newsletters: {str(e)}")
         return redirect(url_for('index'))
+        
+@app.route('/admin/force_send_newsletters', methods=['GET'])
+def admin_force_send_newsletters():
+    """Admin route to force send newsletters regardless of timing rules"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    try:
+        process_newsletters(force=True)
+        flash("Newsletters force-sent successfully!")
+        return redirect(url_for('index'))
+    except Exception as e:
+        flash(f"Error force-sending newsletters: {str(e)}")
+        return redirect(url_for('index'))
 
 @app.route('/preferences', methods=['GET', 'POST'])
 def preferences():

@@ -178,9 +178,12 @@ def send_newsletter(user, html_content):
         logger.error(f"Error sending newsletter to {user.email}: {str(e)}")
         return False
 
-def process_newsletters():
+def process_newsletters(force=False):
     """
     Process newsletters for all subscribed users
+    
+    Args:
+        force (bool): If True, will send newsletters regardless of timing rules
     """
     db = SessionLocal()
     try:
@@ -190,12 +193,12 @@ def process_newsletters():
             User.newsletter_subscribed == True
         ).all()
         
-        logger.info(f"Processing newsletters for {len(users)} subscribed users")
+        logger.info(f"Processing newsletters for {len(users)} subscribed users (force={force})")
         
         for user in users:
             try:
-                # Check if we should send newsletter based on frequency
-                if should_send_newsletter(user):
+                # Check if we should send newsletter based on frequency (unless force=True)
+                if force or should_send_newsletter(user):
                     # Get upcoming events for user
                     events = get_upcoming_events_for_user(user)
                     
@@ -209,6 +212,7 @@ def process_newsletters():
                             # Update last sent timestamp
                             user.last_newsletter_sent = datetime.now(pytz.UTC)
                             db.commit()
+                            logger.info(f"Newsletter sent to {user.email}")
                     else:
                         logger.info(f"No events to send to {user.email}")
                 else:
