@@ -58,6 +58,63 @@ def should_send_newsletter(user):
     # Default: don't send
     return False
 
+def generate_calendar_links(concert_data):
+    """Generate Google Calendar and iCal links for a concert"""
+    from urllib.parse import urlencode, quote
+    from datetime import datetime, time as datetime_time, timedelta
+    from ics import Calendar, Event
+    
+    # Format the event title and description
+    title = f"{', '.join(concert_data['artists'])} at {concert_data['venue']}"
+    description = f"Artists: {', '.join(concert_data['artists'])}\n"
+    if concert_data.get('price_range'):
+        description += f"Price: {concert_data['price_range']}\n"
+    if concert_data.get('ticket_link'):
+        description += f"Tickets: {concert_data['ticket_link']}\n"
+    if concert_data.get('special_notes'):
+        description += f"Notes: {concert_data['special_notes']}"
+    
+    # Parse the first show time, or use 8 PM as default
+    default_time = datetime_time(20, 0)
+    show_time = default_time
+    if concert_data['times'] and len(concert_data['times']) > 0:
+        time_str = concert_data['times'][0]
+        try:
+            # Try to parse the time string (format: "HH:MM AM/PM")
+            show_time = datetime.strptime(time_str, "%I:%M %p").time()
+        except:
+            pass
+    
+    # Create datetime objects for start and end
+    start_dt = datetime.combine(concert_data['date'], show_time)
+    end_dt = start_dt + timedelta(hours=2)  # Assume 2-hour shows
+    
+    # Google Calendar link
+    gcal_params = {
+        'action': 'TEMPLATE',
+        'text': title,
+        'details': description,
+        'location': concert_data['venue'],
+        'dates': f"{start_dt.strftime('%Y%m%dT%H%M%S')}/{end_dt.strftime('%Y%m%dT%H%M%S')}"
+    }
+    gcal_url = "https://calendar.google.com/calendar/render?" + urlencode(gcal_params)
+    
+    # iCal link (using ics library)
+    calendar = Calendar()
+    event = Event()
+    event.name = title
+    event.begin = start_dt
+    event.end = end_dt
+    event.description = description
+    event.location = concert_data['venue']
+    calendar.events.add(event)
+    ical_data = calendar.serialize()
+    
+    return {
+        'gcal': gcal_url,
+        'ical': f"data:text/calendar;charset=utf8,{quote(ical_data)}"
+    }
+
 def get_upcoming_events_for_user(user, days=None):
     """
     Get upcoming events based on user preferences and newsletter frequency.
@@ -128,7 +185,7 @@ def get_upcoming_events_for_user(user, days=None):
         # Return events with their venue information
         events = []
         for concert in concerts:
-            events.append({
+            event_data = {
                 'id': concert.id,
                 'date': concert.date,
                 'venue': concert.venue.name,
@@ -138,7 +195,12 @@ def get_upcoming_events_for_user(user, days=None):
                 'price_range': concert.price_range,
                 'special_notes': concert.special_notes,
                 'neighborhood': concert.venue.neighborhood
-            })
+            }
+            
+            # Add calendar links
+            event_data['calendar_links'] = generate_calendar_links(event_data)
+            
+            events.append(event_data)
         
         # Sort by date
         events.sort(key=lambda x: x['date'])
