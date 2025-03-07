@@ -47,14 +47,14 @@ def login():
     """Redirect to Google login"""
     try:
         flow = get_google_flow()
-        auth_url, _ = flow.authorization_url(
+        auth_url, state = flow.authorization_url(
             access_type='offline',
             include_granted_scopes='true',
             prompt='consent'
         )
         
         # Store the state in the session for later verification
-        session['google_state'] = flow.state
+        session['google_state'] = state
         
         logger.info(f"Redirecting to Google auth URL: {auth_url}")
         return redirect(auth_url)
