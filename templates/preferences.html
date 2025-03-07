@@ -11,40 +11,7 @@
     </div>
     
     <form id="preferences-form" method="POST" action="{{ url_for('preferences') }}">
-        <div class="preference-section">
-            <h2>Venues</h2>
-            {% for venue in venues %}
-            <label class="checkbox-container">
-                <input type="checkbox" name="venues" value="{{ venue.id }}"
-                    {% if user.preferred_venues and venue.id|string in user.preferred_venues %}checked{% endif %}>
-                {{ venue.name }}
-            </label>
-            {% endfor %}
-        </div>
-
-        <div class="preference-section">
-            <h2>Neighborhoods</h2>
-            {% for neighborhood in neighborhoods %}
-            <label class="checkbox-container">
-                <input type="checkbox" name="neighborhoods" value="{{ neighborhood }}"
-                    {% if user.preferred_neighborhoods and neighborhood|string in user.preferred_neighborhoods %}checked{% endif %}>
-                {{ neighborhood }}
-            </label>
-            {% endfor %}
-        </div>
-
-        <div class="preference-section">
-            <h2>Genres</h2>
-            {% for genre in genres %}
-            <label class="checkbox-container">
-                <input type="checkbox" name="genres" value="{{ genre }}"
-                    {% if user.preferred_genres and genre|string in user.preferred_genres %}checked{% endif %}>
-                {{ genre }}
-            </label>
-            {% endfor %}
-        </div>
-
-        <div class="preference-section">
+        <div class="preference-section" id="newsletter-section">
             <h2>Newsletter Preferences</h2>
             <div class="newsletter-options">
                 <label class="checkbox-container">
@@ -79,6 +46,39 @@
             </div>
         </div>
 
+        <div class="preference-section">
+            <h2>Venues</h2>
+            {% for venue in venues %}
+            <label class="checkbox-container">
+                <input type="checkbox" name="venues" value="{{ venue.id }}"
+                    {% if user.preferred_venues and venue.id|string in user.preferred_venues %}checked{% endif %}>
+                {{ venue.name }}
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="preference-section">
+            <h2>Neighborhoods</h2>
+            {% for neighborhood in neighborhoods %}
+            <label class="checkbox-container">
+                <input type="checkbox" name="neighborhoods" value="{{ neighborhood }}"
+                    {% if user.preferred_neighborhoods and neighborhood|string in user.preferred_neighborhoods %}checked{% endif %}>
+                {{ neighborhood }}
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="preference-section">
+            <h2>Genres</h2>
+            {% for genre in genres %}
+            <label class="checkbox-container">
+                <input type="checkbox" name="genres" value="{{ genre }}"
+                    {% if user.preferred_genres and genre|string in user.preferred_genres %}checked{% endif %}>
+                {{ genre }}
+            </label>
+            {% endfor %}
+        </div>
+
         <button type="submit" class="wp-block-button__link">Save Preferences</button>
     </form>
 </div>
@@ -93,6 +93,27 @@
             newsletterCheckbox.addEventListener('change', function() {
                 frequencyContainer.style.display = this.checked ? 'block' : 'none';
             });
+        }
+        
+        // Scroll to newsletter section if needed
+        if ('{{ section }}' === 'newsletter') {
+            const newsletterSection = document.getElementById('newsletter-section');
+            if (newsletterSection) {
+                newsletterSection.scrollIntoView({ behavior: 'smooth' });
+                
+                // Highlight the section briefly
+                newsletterSection.style.transition = 'background-color 1s';
+                newsletterSection.style.backgroundColor = 'rgba(6, 147, 227, 0.3)';
+                setTimeout(function() {
+                    newsletterSection.style.backgroundColor = '';
+                }, 2000);
+                
+                // Check the subscribe box if not already checked
+                if (newsletterCheckbox && !newsletterCheckbox.checked) {
+                    newsletterCheckbox.checked = true;
+                    frequencyContainer.style.display = 'block';
+                }
+            }
         }
     });
 </script>

@@ -584,6 +584,7 @@
         <div class="nav-right">
             {% if user %}
                 <span>Welcome, {{ user.email }}!</span>
+                <a href="{{ url_for('preferences') }}?section=newsletter" class="wp-block-button__link">Get Shows by Email</a>
                 <a href="{{ url_for('preferences') }}" class="wp-block-button__link">Preferences</a>
                 {% if user.id == 1 %} <!-- Simple admin check based on first user -->
                 <div class="admin-actions">

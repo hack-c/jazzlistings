@@ -1024,12 +1024,16 @@ def preferences():
         # Sort genres alphabetically
         genres = sorted(all_genres)
         
+        # Check if we should scroll to the newsletter section
+        section = request.args.get('section', '')
+        
         return render_template(
             'preferences.html',
             user=user,
             venues=venues,
             neighborhoods=neighborhoods,
-            genres=genres
+            genres=genres,
+            section=section
         )
     except Exception as e:
         logging.error(f"Error in preferences route: {str(e)}")
