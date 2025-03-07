@@ -263,7 +263,7 @@ def send_newsletter(user, html_content):
             logger.info(f"Newsletter sent successfully to {user.email}")
             return True
         else:
-            logger.error(f"Failed to send newsletter to {user.email}. Status code: {response.status_code}")
+            logger.error(f"Failed to send newsletter to {user.email}. Status code: {response.status_code}, Body: {response.body}")
             return False
             
     except Exception as e:
@@ -288,31 +288,42 @@ def process_newsletters(force=False):
         logger.info(f"Processing newsletters for {len(users)} subscribed users (force={force})")
         
         for user in users:
+            # Create a separate session for each user to avoid transaction conflicts
+            user_db = SessionLocal()
             try:
+                # Refetch user in this session
+                current_user = user_db.query(User).filter(User.id == user.id).first()
+                if not current_user:
+                    logger.error(f"User {user.email} not found in database")
+                    continue
+                
                 # Check if we should send newsletter based on frequency (unless force=True)
-                if force or should_send_newsletter(user):
+                if force or should_send_newsletter(current_user):
                     # Get upcoming events for user based on their newsletter frequency
-                    # Daily users get 3 days ahead, others get 14 days ahead
-                    events = get_upcoming_events_for_user(user)
+                    events = get_upcoming_events_for_user(current_user)
                     
                     # Only send if there are events to share
                     if events:
                         # Generate newsletter content
-                        html_content = generate_newsletter_html(user, events)
+                        html_content = generate_newsletter_html(current_user, events)
                         
                         # Send newsletter
-                        if send_newsletter(user, html_content):
+                        if send_newsletter(current_user, html_content):
                             # Update last sent timestamp
-                            user.last_newsletter_sent = datetime.now(pytz.UTC)
-                            db.commit()
-                            logger.info(f"Newsletter sent to {user.email}")
+                            current_user.last_newsletter_sent = datetime.now(pytz.UTC)
+                            user_db.commit()
+                            logger.info(f"Newsletter sent to {current_user.email} and last_newsletter_sent updated to {current_user.last_newsletter_sent}")
+                        else:
+                            logger.error(f"Failed to send newsletter to {current_user.email}")
                     else:
-                        logger.info(f"No events to send to {user.email}")
+                        logger.info(f"No events to send to {current_user.email}")
                 else:
-                    logger.info(f"Skipping newsletter for {user.email} (not due yet)")
+                    logger.info(f"Skipping newsletter for {current_user.email} (not due yet)")
             except Exception as e:
                 logger.error(f"Error processing newsletter for {user.email}: {str(e)}")
-                db.rollback()
+                user_db.rollback()
+            finally:
+                user_db.close()
         
     except Exception as e:
         logger.error(f"Error in process_newsletters: {str(e)}")
@@ -342,30 +353,42 @@ def schedule_newsletters():
                 
             logger.info(f"Processing daily newsletters for {len(users)} users")
             for user in users:
+                # Create a separate session for each user to avoid transaction conflicts
+                user_db = SessionLocal()
                 try:
+                    # Refetch user in this session
+                    current_user = user_db.query(User).filter(User.id == user.id).first()
+                    if not current_user:
+                        logger.error(f"User {user.email} not found in database")
+                        continue
+                    
                     # Check timing
-                    if should_send_newsletter(user):
+                    if should_send_newsletter(current_user):
                         # Get upcoming events for next 7 days
-                        events = get_upcoming_events_for_user(user, days=7)
+                        events = get_upcoming_events_for_user(current_user, days=7)
                         
                         # Only send if there are events to share
                         if events:
                             # Generate newsletter content
-                            html_content = generate_newsletter_html(user, events)
+                            html_content = generate_newsletter_html(current_user, events)
                             
                             # Send newsletter
-                            if send_newsletter(user, html_content):
+                            if send_newsletter(current_user, html_content):
                                 # Update last sent timestamp
-                                user.last_newsletter_sent = datetime.now(pytz.UTC)
-                                db.commit()
-                                logger.info(f"Daily newsletter sent to {user.email}")
+                                current_user.last_newsletter_sent = datetime.now(pytz.UTC)
+                                user_db.commit()
+                                logger.info(f"Daily newsletter sent to {current_user.email} and last_newsletter_sent updated to {current_user.last_newsletter_sent}")
+                            else:
+                                logger.error(f"Failed to send newsletter to {current_user.email}")
                         else:
-                            logger.info(f"No events in next 7 days for {user.email}")
+                            logger.info(f"No events in next 7 days for {current_user.email}")
                     else:
-                        logger.info(f"Skipping daily newsletter for {user.email} (not due yet)")
+                        logger.info(f"Skipping daily newsletter for {current_user.email} (not due yet)")
                 except Exception as e:
                     logger.error(f"Error processing daily newsletter for {user.email}: {str(e)}")
-                    db.rollback()
+                    user_db.rollback()
+                finally:
+                    user_db.close()
         except Exception as e:
             logger.error(f"Error processing daily newsletters: {str(e)}")
         finally:
@@ -388,30 +411,42 @@ def schedule_newsletters():
                 
             logger.info(f"Processing regular newsletters for {len(users)} users")
             for user in users:
+                # Create a separate session for each user to avoid transaction conflicts
+                user_db = SessionLocal()
                 try:
+                    # Refetch user in this session
+                    current_user = user_db.query(User).filter(User.id == user.id).first()
+                    if not current_user:
+                        logger.error(f"User {user.email} not found in database")
+                        continue
+                    
                     # Check timing
-                    if should_send_newsletter(user):
+                    if should_send_newsletter(current_user):
                         # Get upcoming events for user (defaults to 14 days)
-                        events = get_upcoming_events_for_user(user)
+                        events = get_upcoming_events_for_user(current_user)
                         
                         # Only send if there are events to share
                         if events:
                             # Generate newsletter content
-                            html_content = generate_newsletter_html(user, events)
+                            html_content = generate_newsletter_html(current_user, events)
                             
                             # Send newsletter
-                            if send_newsletter(user, html_content):
+                            if send_newsletter(current_user, html_content):
                                 # Update last sent timestamp
-                                user.last_newsletter_sent = datetime.now(pytz.UTC)
-                                db.commit()
-                                logger.info(f"Regular newsletter sent to {user.email}")
+                                current_user.last_newsletter_sent = datetime.now(pytz.UTC)
+                                user_db.commit()
+                                logger.info(f"Regular newsletter sent to {current_user.email} and last_newsletter_sent updated to {current_user.last_newsletter_sent}")
+                            else:
+                                logger.error(f"Failed to send newsletter to {current_user.email}")
                         else:
-                            logger.info(f"No events to send to {user.email}")
+                            logger.info(f"No events to send to {current_user.email}")
                     else:
-                        logger.info(f"Skipping newsletter for {user.email} (not due yet)")
+                        logger.info(f"Skipping newsletter for {current_user.email} (not due yet)")
                 except Exception as e:
                     logger.error(f"Error processing newsletter for {user.email}: {str(e)}")
-                    db.rollback()
+                    user_db.rollback()
+                finally:
+                    user_db.close()
         except Exception as e:
             logger.error(f"Error processing regular newsletters: {str(e)}")
         finally:

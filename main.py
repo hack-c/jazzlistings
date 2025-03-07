@@ -915,10 +915,13 @@ def admin_send_newsletters():
         return redirect(url_for('auth.login'))
         
     try:
-        process_newsletters()
+        logging.info("Manually triggering newsletter sending for all users (force=True)")
+        process_newsletters(force=True)
+        logging.info("Newsletter processing completed")
         flash("Newsletters processed successfully!")
         return redirect(url_for('index'))
     except Exception as e:
+        logging.error(f"Error in admin_send_newsletters: {str(e)}")
         flash(f"Error sending newsletters: {str(e)}")
         return redirect(url_for('index'))
         
@@ -936,6 +939,8 @@ def admin_force_send_newsletters():
             flash("User not found.")
             return redirect(url_for('index'))
             
+        logging.info(f"Force sending newsletter to {user.email}")
+        
         from newsletter import get_upcoming_events_for_user, generate_newsletter_html, send_newsletter
         import pytz
         from datetime import datetime
@@ -951,14 +956,20 @@ def admin_force_send_newsletters():
         html_content = generate_newsletter_html(user, events)
         if send_newsletter(user, html_content):
             # Update last sent timestamp
+            old_timestamp = user.last_newsletter_sent
             user.last_newsletter_sent = datetime.now(pytz.UTC)
             db.commit()
+            
+            # Verify the timestamp was updated
+            db.refresh(user)
+            logging.info(f"Newsletter sent successfully. Last newsletter timestamp updated: {old_timestamp} -> {user.last_newsletter_sent}")
             flash("Newsletter sent successfully to your email!")
         else:
             flash("Error sending newsletter. Please check logs.")
             
         return redirect(url_for('index'))
     except Exception as e:
+        logging.error(f"Error in admin_force_send_newsletters: {str(e)}")
         flash(f"Error sending newsletter: {str(e)}")
         return redirect(url_for('index'))
     finally:
